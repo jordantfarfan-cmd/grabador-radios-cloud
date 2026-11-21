@@ -47,11 +47,12 @@ ffmpeg -y -f concat -safe 0 -i lista.txt -c copy audio_unido.ts
 FECHA_LIMA=$(TZ="America/Lima" date +"%Y-%m-%d_%H-%M")
 OUTPUT_MP4="${SHOW_NAME} - ${FECHA_LIMA}.mp4"
 
-echo "--> Generando MP4 unificado final..."
+echo "--> Generando MP4 unificado final (Color BT.709)..."
 ffmpeg -y \
     -loop 1 -framerate 1 -i cover.png \
     -i audio_unido.ts \
-    -vf "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
+    -vf "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2,scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p" \
+    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv \
     -c:v libx264 -tune stillimage -preset ultrafast -crf 18 \
     -c:a libopus -b:a 320k \
     -shortest \

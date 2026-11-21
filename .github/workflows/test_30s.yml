@@ -1,11 +1,16 @@
-name: "Prueba 30 Segundos - 8 Radios"
+name: "Prueba de Calidad (90s - Color y Audio)"
 
 on:
-  workflow_dispatch: # Se activa manualmente con un clic en GitHub
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: 'Duración de la prueba en segundos'
+        required: false
+        default: '90'
 
 jobs:
   test_stations:
-    name: "Test 30s: ${{ matrix.name }}"
+    name: "Test: ${{ matrix.name }}"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -14,21 +19,21 @@ jobs:
           - name: "MODA EL JUERGON DE MODA"
             url: "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/icecast.audio"
             cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/MODA%20EL%20JUERGON%20DE%20MODA.png"
-          - name: "PLANETA PLANETA WEEKEND"
-            url: "https://mdstrm.com/audio/6839e274f40e6b9832e37633/icecast.audio"
-            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/PLANETA%20PLANETA%20WEEKEND.png"
-          - name: "ONDA CERO LA TOCADA"
-            url: "https://mdstrm.com/audio/6598b65ab398c90871aff8cc/icecast.audio"
-            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/ONDA%20CERO%20LA%20TOCADA.png"
-          - name: "PANAMERICANA PANAMIX"
-            url: "https://mdstrm.com/audio/6598b62dded1380470f4e539/icecast.audio"
-            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/PANAMERICANA%20PANAMIX.png"
-          - name: "STUDIO SESSIONS"
-            url: "https://mdstrm.com/audio/5fada553978fe1080e3ac5ea/icecast.audio"
-            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/STUDIO%20SESSIONS.png"
           - name: "LA ZONA ZONA WEEKEND"
             url: "https://mdstrm.com/audio/5fada54116646e098d97e6a5/icecast.audio"
             cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/LA%20ZONA%20ZONA%20WEEKEND.png"
+          - name: "ONDA CERO LA TOCADA"
+            url: "https://mdstrm.com/audio/6598b65ab398c90871aff8cc/icecast.audio"
+            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/ONDA%20CERO%20LA%20TOCADA.png"
+          - name: "STUDIO SESSIONS"
+            url: "https://mdstrm.com/audio/5fada553978fe1080e3ac5ea/icecast.audio"
+            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/STUDIO%20SESSIONS.png"
+          - name: "PLANETA PLANETA WEEKEND"
+            url: "https://mdstrm.com/audio/6839e274f40e6b9832e37633/icecast.audio"
+            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/PLANETA%20PLANETA%20WEEKEND.png"
+          - name: "PANAMERICANA PANAMIX"
+            url: "https://mdstrm.com/audio/6598b62dded1380470f4e539/icecast.audio"
+            cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/PANAMERICANA%20PANAMIX.png"
           - name: "OXIGENO BAR OXIGENO"
             url: "https://mdstrm.com/audio/5fab0687bcd6c2389ee9480c/icecast.audio"
             cover: "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/OXIGENO%20BAR%20OXIGENO.png"
@@ -57,12 +62,13 @@ jobs:
             echo "Aviso: Secret RCLONE_CONFIG no encontrado. El MP4 quedará como Artefacto descargable en GitHub."
           fi
 
-      - name: "Ejecutar grabación de prueba (30 segundos)"
+      - name: "Ejecutar grabación de prueba (90 segundos)"
         run: |
           chmod +x scripts/record_radio.sh
-          ./scripts/record_radio.sh "${{ matrix.name }}" "${{ matrix.url }}" "${{ matrix.cover }}" 30 "Grabaciones_Radio/Pruebas"
+          DUR="${{ inputs.duration_seconds || '90' }}"
+          ./scripts/record_radio.sh "${{ matrix.name }}" "${{ matrix.url }}" "${{ matrix.cover }}" "$DUR" "Grabaciones_Radio/Pruebas"
 
-      - name: "Subir muestra MP4 como Artefacto"
+      - name: "Subir muestra MP4 como Artefacto (1 día)"
         uses: actions/upload-artifact@v4
         with:
           name: "Muestra_${{ matrix.name }}"
