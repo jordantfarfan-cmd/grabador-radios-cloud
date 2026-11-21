@@ -1,0 +1,37 @@
+{
+  "stations": {
+    "MODA": {
+      "stream_url": "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Moda"
+    },
+    "PLANETA": {
+      "stream_url": "https://mdstrm.com/audio/6839e274f40e6b9832e37633/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Planeta"
+    },
+    "ONDA_CERO": {
+      "stream_url": "https://mdstrm.com/audio/6598b65ab398c90871aff8cc/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Onda_Cero"
+    },
+    "PANAMERICANA": {
+      "stream_url": "https://mdstrm.com/audio/6598b62dded1380470f4e539/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Panamericana"
+    },
+    "STUDIO_92": {
+      "stream_url": "https://mdstrm.com/audio/5fada553978fe1080e3ac5ea/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Studio_92"
+    },
+    "LA_ZONA": {
+      "stream_url": "https://mdstrm.com/audio/5fada54116646e098d97e6a5/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/La_Zona"
+    },
+    "OXIGENO": {
+      "stream_url": "https://mdstrm.com/audio/5fab0687bcd6c2389ee9480c/icecast.audio",
+      "gdrive_folder": "Grabaciones_Radio/Oxigeno"
+    },
+    "VIVA_FM": {
+      "stream_url": "https://tupanel.info:8780/stream",
+      "gdrive_folder": "Grabaciones_Radio/Viva_FM"
+    }
+  },
+  "covers_base_url": "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/"
+}

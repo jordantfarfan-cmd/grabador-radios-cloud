@@ -1,0 +1,170 @@
+name: "Grabador de Radios Programado"
+
+on:
+  schedule:
+    # Horarios automáticos en UTC (GMT-5 de Lima)
+    # 12:00 PM Lima = 17:00 UTC (Lunes a Sábado: Panamericana Panamix)
+    - cron: '0 17 * * 1-6'
+    # 03:00 PM Lima = 20:00 UTC (Viernes: La Zona Clásicos)
+    - cron: '0 20 * * 5'
+    # 06:00 PM Lima = 23:00 UTC (Sábado y Domingo: La Zona Zona Weekend Clásicos - 6h)
+    - cron: '0 23 * * 6,0'
+    # 07:00 PM Lima = 00:00 UTC (Viernes y Sábado: Viva FM Fiesta Privada)
+    - cron: '0 0 * * 6,0'
+    # 08:00 PM Lima = 01:00 UTC (Viernes y Sábado: Moda, Planeta, Studio Sessions)
+    - cron: '0 1 * * 6,0'
+    # 09:00 PM Lima = 02:00 UTC (Onda Cero, Oxígeno, La Zona Weekend)
+    - cron: '0 2 * * *'
+    # 10:00 PM Lima = 03:00 UTC (Sábado: Panamericana Panamix Noche)
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      manual_show:
+        description: 'Nombre del programa a grabar manualmente'
+        required: false
+        default: 'AUTO'
+        type: choice
+        options:
+          - 'AUTO'
+          - 'MODA EL JUERGON DE MODA'
+          - 'PLANETA PLANETA WEEKEND'
+          - 'ONDA CERO LA TOCADA'
+          - 'PANAMERICANA PANAMIX'
+          - 'STUDIO SESSIONS'
+          - 'LA ZONA ZONA WEEKEND'
+          - 'OXIGENO BAR OXIGENO'
+          - 'VIVA FM FIESTA PRIVADA'
+          - 'LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON'
+      manual_duration_seconds:
+        description: 'Duración en segundos si se ejecuta manualmente (ej. 14400 para 4h)'
+        required: false
+        default: '14400'
+
+jobs:
+  determine_shows:
+    name: "Identificar programas activos"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: "Clonar repositorio"
+        uses: actions/checkout@v4
+
+      - name: "Calcular matriz de radios activas según día y hora GMT-5"
+        id: set-matrix
+        run: |
+          node -e '
+            const fs = require("fs");
+            const config = JSON.parse(fs.readFileSync("config/stations.json", "utf8"));
+            const manual = "${{ inputs.manual_show }}";
+            const manualDuration = parseInt("${{ inputs.manual_duration_seconds }}") || 14400;
+
+            const GITHUB_COVERS = config.covers_base_url;
+            const STATIONS = config.stations;
+
+            const now = new Date();
+            const lima = new Date(now.toLocaleString("en-US", { timeZone: "America/Lima" }));
+            const day = lima.getDay(); // 0: Sun, 1: Mon, ... 5: Fri, 6: Sat
+            const hour = lima.getHours();
+            const min = lima.getMinutes();
+            const timeVal = hour * 60 + min;
+
+            console.log(`Hora Lima detectada: ${lima.toISOString()} (Día: ${day}, Hora: ${hour}:${min})`);
+
+            let shows = [];
+
+            // Si es ejecución manual específica
+            if (manual && manual !== "AUTO") {
+              const coverUrl = `${GITHUB_COVERS}${encodeURIComponent(manual)}.png`;
+              let streamUrl = "";
+              let folder = "Grabaciones_Radio/Manual";
+
+              if (manual.includes("MODA")) { streamUrl = STATIONS.MODA.stream_url; folder = STATIONS.MODA.gdrive_folder; }
+              else if (manual.includes("PLANETA")) { streamUrl = STATIONS.PLANETA.stream_url; folder = STATIONS.PLANETA.gdrive_folder; }
+              else if (manual.includes("ONDA CERO")) { streamUrl = STATIONS.ONDA_CERO.stream_url; folder = STATIONS.ONDA_CERO.gdrive_folder; }
+              else if (manual.includes("PANAMERICANA")) { streamUrl = STATIONS.PANAMERICANA.stream_url; folder = STATIONS.PANAMERICANA.gdrive_folder; }
+              else if (manual.includes("STUDIO")) { streamUrl = STATIONS.STUDIO_92.stream_url; folder = STATIONS.STUDIO_92.gdrive_folder; }
+              else if (manual.includes("LA ZONA")) { streamUrl = STATIONS.LA_ZONA.stream_url; folder = STATIONS.LA_ZONA.gdrive_folder; }
+              else if (manual.includes("OXIGENO")) { streamUrl = STATIONS.OXIGENO.stream_url; folder = STATIONS.OXIGENO.gdrive_folder; }
+              else if (manual.includes("VIVA")) { streamUrl = STATIONS.VIVA_FM.stream_url; folder = STATIONS.VIVA_FM.gdrive_folder; }
+
+              shows.push({ name: manual, url: streamUrl, cover: coverUrl, duration: manualDuration, folder });
+            } else {
+              // Detección automática por horario y día
+              // 1. Panamericana Panamix (12:00 PM Lima)
+              if (hour === 12 && day >= 1 && day <= 6) {
+                shows.push({ name: "PANAMERICANA PANAMIX", url: STATIONS.PANAMERICANA.stream_url, cover: `${GITHUB_COVERS}PANAMERICANA%20PANAMIX.png`, duration: 3600, folder: STATIONS.PANAMERICANA.gdrive_folder });
+              }
+              // 2. La Zona Clásicos (3:00 PM Viernes)
+              if (hour === 15 && day === 5) {
+                shows.push({ name: "LA ZONA CLASICOS DEL REGGAETON", url: STATIONS.LA_ZONA.stream_url, cover: `${GITHUB_COVERS}LA%20ZONA%20CLASICOS%20DEL%20REGGAETON.png`, duration: 3600, folder: STATIONS.LA_ZONA.gdrive_folder });
+              }
+              // 3. Viva FM (7:00 PM Viernes y Sábado)
+              if (hour === 19 && (day === 5 || day === 6)) {
+                shows.push({ name: "VIVA FM FIESTA PRIVADA", url: STATIONS.VIVA_FM.stream_url, cover: `${GITHUB_COVERS}VIVA%20FM%20FIESTA%20PRIVADA.png`, duration: 18000, folder: STATIONS.VIVA_FM.gdrive_folder });
+              }
+              // 4. Moda, Planeta, Studio Sessions (8:00 PM Viernes y Sábado)
+              if (hour === 20 && (day === 5 || day === 6)) {
+                shows.push({ name: "MODA EL JUERGON DE MODA", url: STATIONS.MODA.stream_url, cover: `${GITHUB_COVERS}MODA%20EL%20JUERGON%20DE%20MODA.png`, duration: 14400, folder: STATIONS.MODA.gdrive_folder });
+                shows.push({ name: "PLANETA PLANETA WEEKEND", url: STATIONS.PLANETA.stream_url, cover: `${GITHUB_COVERS}PLANETA%20PLANETA%20WEEKEND.png`, duration: 14400, folder: STATIONS.PLANETA.gdrive_folder });
+                shows.push({ name: "STUDIO SESSIONS", url: STATIONS.STUDIO_92.stream_url, cover: `${GITHUB_COVERS}STUDIO%20SESSIONS.png`, duration: 14400, folder: STATIONS.STUDIO_92.gdrive_folder });
+              }
+              // 5. Onda Cero, Oxígeno, La Zona Weekend (9:00 PM)
+              if (hour === 21) {
+                if (day >= 1 && day <= 4) {
+                  shows.push({ name: "ONDA CERO LA HORA REMIX", url: STATIONS.ONDA_CERO.stream_url, cover: `${GITHUB_COVERS}ONDA%20CERO%20LA%20HORA%20REMIX.png`, duration: 3600, folder: STATIONS.ONDA_CERO.gdrive_folder });
+                }
+                if (day === 5 || day === 6) {
+                  shows.push({ name: "ONDA CERO LA TOCADA", url: STATIONS.ONDA_CERO.stream_url, cover: `${GITHUB_COVERS}ONDA%20CERO%20LA%20TOCADA.png`, duration: 10800, folder: STATIONS.ONDA_CERO.gdrive_folder });
+                  shows.push({ name: "OXIGENO BAR OXIGENO", url: STATIONS.OXIGENO.stream_url, cover: `${GITHUB_COVERS}OXIGENO%20BAR%20OXIGENO.png`, duration: 10800, folder: STATIONS.OXIGENO.gdrive_folder });
+                  shows.push({ name: "LA ZONA ZONA WEEKEND", url: STATIONS.LA_ZONA.stream_url, cover: `${GITHUB_COVERS}LA%20ZONA%20ZONA%20WEEKEND.png`, duration: 10800, folder: STATIONS.LA_ZONA.gdrive_folder });
+                }
+                if (day === 0) {
+                  shows.push({ name: "MODA EL JUERGON DE MODA", url: STATIONS.MODA.stream_url, cover: `${GITHUB_COVERS}MODA%20EL%20JUERGON%20DE%20MODA.png`, duration: 10800, folder: STATIONS.MODA.gdrive_folder });
+                }
+              }
+            }
+
+            console.log(`Programas detectados (${shows.length}):`, JSON.stringify(shows));
+            const matrixJson = JSON.stringify({ include: shows });
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${matrixJson}\n`);
+          '
+
+  record:
+    name: "Grabar: ${{ matrix.name }}"
+    needs: determine_shows
+    if: ${{ fromJson(needs.determine_shows.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.determine_shows.outputs.matrix) }}
+    steps:
+      - name: "Clonar repositorio"
+        uses: actions/checkout@v4
+
+      - name: "Instalar FFmpeg y rclone"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg rclone
+
+      - name: "Configurar rclone"
+        env:
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          if [ -n "$RCLONE_CONFIG_DATA" ]; then
+            mkdir -p ~/.config/rclone
+            echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
+          fi
+
+      - name: "Ejecutar grabación programada"
+        run: |
+          chmod +x scripts/record_radio.sh
+          ./scripts/record_radio.sh "${{ matrix.name }}" "${{ matrix.url }}" "${{ matrix.cover }}" "${{ matrix.duration }}" "${{ matrix.folder }}"
+
+      - name: "Subir copia de seguridad como Artefacto (1 día)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "Backup_${{ matrix.name }}"
+          path: temp_*/*.mp4
+          retention-days: 1
+          if-no-files-found: ignore
