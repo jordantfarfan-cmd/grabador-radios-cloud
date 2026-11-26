@@ -17,7 +17,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+]
 
 
 def build_youtube_service(token_json_str: str):
@@ -28,7 +31,7 @@ def build_youtube_service(token_json_str: str):
         token_uri=info.get("token_uri", "https://oauth2.googleapis.com/token"),
         client_id=info.get("client_id"),
         client_secret=info.get("client_secret"),
-        scopes=SCOPES,
+        scopes=info.get("scopes") or SCOPES,
     )
     if not creds.valid or creds.expired:
         creds.refresh(Request())
