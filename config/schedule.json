@@ -1,0 +1,202 @@
+{
+  "timezone": "America/Lima",
+  "early_buffer_minutes": 10,
+  "end_buffer_minutes": 2,
+  "covers_base_url": "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/",
+  "stations": {
+    "MODA": {
+      "url": "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "PLANETA": {
+      "url": "https://mdstrm.com/audio/6839e274f40e6b9832e37633/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "ONDA_CERO": {
+      "url": "https://mdstrm.com/audio/6598b65ab398c90871aff8cc/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "PANAMERICANA": {
+      "url": "https://mdstrm.com/audio/6598b62dded1380470f4e539/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "STUDIO_92": {
+      "url": "https://mdstrm.com/audio/5fada553978fe1080e3ac5ea/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "LA_ZONA": {
+      "url": "https://mdstrm.com/audio/5fada54116646e098d97e6a5/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "OXIGENO": {
+      "url": "https://mdstrm.com/audio/5fab0687bcd6c2389ee9480c/live.m3u8?dnt=true",
+      "use_vpn": true
+    },
+    "VIVA_FM": {
+      "url": "https://tupanel.info:8780/stream",
+      "use_vpn": false
+    }
+  },
+  "shows": [
+    {
+      "slug": "PANAMERICANA_PANAMIX_DIA",
+      "name": "PANAMERICANA PANAMIX",
+      "station": "PANAMERICANA",
+      "cover": "PANAMERICANA%20PANAMIX.png",
+      "days": [1, 2, 3, 4, 5],
+      "start": "12:00",
+      "end": "13:00",
+      "window": "daytime_12"
+    },
+    {
+      "slug": "LA_ZONA_CLASICOS",
+      "name": "LA ZONA CLASICOS DEL REGGAETON",
+      "station": "LA_ZONA",
+      "cover": "LA%20ZONA%20CLASICOS%20DEL%20REGGAETON.png",
+      "days": [5],
+      "start": "15:00",
+      "end": "16:00",
+      "window": "daytime_15"
+    },
+    {
+      "slug": "VIVA_FM_FIESTA_PRIVADA",
+      "name": "VIVA FM FIESTA PRIVADA",
+      "station": "VIVA_FM",
+      "cover": "VIVA%20FM%20FIESTA%20PRIVADA.png",
+      "days": [5, 6],
+      "start": "19:00",
+      "end": "24:00",
+      "window": "viva_night"
+    },
+    {
+      "slug": "ONDA_CERO_HORA_REMIX",
+      "name": "ONDA CERO LA HORA REMIX",
+      "station": "ONDA_CERO",
+      "cover": "ONDA%20CERO%20LA%20HORA%20REMIX.png",
+      "days": [1, 2, 3, 4],
+      "start": "21:00",
+      "end": "22:00",
+      "window": "night"
+    },
+    {
+      "slug": "LA_ZONA_WEEKEND_CLASICOS",
+      "name": "LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON",
+      "station": "LA_ZONA",
+      "cover": "LA%20ZONA%20ZONA%20WEEKEND%20CLASICOS%20DEL%20REGGAETON.png",
+      "days": [6, 0],
+      "start": "18:00",
+      "end": "24:00",
+      "window": "night"
+    },
+    {
+      "slug": "STUDIO_MODO_LATIN",
+      "name": "STUDIO MODO LATIN",
+      "station": "STUDIO_92",
+      "cover": "STUDIO%20MODO%20LATIN.png",
+      "days": [6],
+      "start": "19:00",
+      "end": "20:00",
+      "window": "night"
+    },
+    {
+      "slug": "PLANETA_WEEKEND",
+      "name": "PLANETA PLANETA WEEKEND",
+      "station": "PLANETA",
+      "cover": "PLANETA%20PLANETA%20WEEKEND.png",
+      "days": [5],
+      "start": "20:00",
+      "end": "26:00",
+      "window": "night"
+    },
+    {
+      "slug": "PLANETA_WEEKEND_SAB",
+      "name": "PLANETA PLANETA WEEKEND",
+      "station": "PLANETA",
+      "cover": "PLANETA%20PLANETA%20WEEKEND.png",
+      "days": [6],
+      "start": "19:55",
+      "end": "26:00",
+      "window": "night"
+    },
+    {
+      "slug": "MODA_JUERGON_VS",
+      "name": "MODA EL JUERGON DE MODA",
+      "station": "MODA",
+      "cover": "MODA%20EL%20JUERGON%20DE%20MODA.png",
+      "days": [5, 6],
+      "start": "20:00",
+      "end": "28:00",
+      "window": "night"
+    },
+    {
+      "slug": "MODA_JUERGON_DOM",
+      "name": "MODA EL JUERGON DE MODA",
+      "station": "MODA",
+      "cover": "MODA%20EL%20JUERGON%20DE%20MODA.png",
+      "days": [0],
+      "start": "21:00",
+      "end": "28:00",
+      "window": "night"
+    },
+    {
+      "slug": "STUDIO_SESSIONS",
+      "name": "STUDIO SESSIONS",
+      "station": "STUDIO_92",
+      "cover": "STUDIO%20SESSIONS.png",
+      "days": [5, 6],
+      "start": "20:00",
+      "end": "24:00",
+      "window": "night"
+    },
+    {
+      "slug": "OXIGENO_BAR_VIE",
+      "name": "OXIGENO BAR OXIGENO",
+      "station": "OXIGENO",
+      "cover": "OXIGENO%20BAR%20OXIGENO.png",
+      "days": [5],
+      "start": "21:00",
+      "end": "24:00",
+      "window": "night"
+    },
+    {
+      "slug": "OXIGENO_BAR_SAB",
+      "name": "OXIGENO BAR OXIGENO",
+      "station": "OXIGENO",
+      "cover": "OXIGENO%20BAR%20OXIGENO.png",
+      "days": [6],
+      "start": "20:00",
+      "end": "24:00",
+      "window": "night"
+    },
+    {
+      "slug": "LA_ZONA_WEEKEND",
+      "name": "LA ZONA ZONA WEEKEND",
+      "station": "LA_ZONA",
+      "cover": "LA%20ZONA%20ZONA%20WEEKEND.png",
+      "days": [5],
+      "start": "21:00",
+      "end": "26:00",
+      "window": "night"
+    },
+    {
+      "slug": "ONDA_CERO_LA_TOCADA",
+      "name": "ONDA CERO LA TOCADA",
+      "station": "ONDA_CERO",
+      "cover": "ONDA%20CERO%20LA%20TOCADA.png",
+      "days": [5, 6],
+      "start": "21:00",
+      "end": "26:00",
+      "window": "night"
+    },
+    {
+      "slug": "PANAMERICANA_PANAMIX_NOCHE",
+      "name": "PANAMERICANA PANAMIX",
+      "station": "PANAMERICANA",
+      "cover": "PANAMERICANA%20PANAMIX.png",
+      "days": [6],
+      "start": "22:00",
+      "end": "24:00",
+      "window": "night"
+    }
+  ]
+}

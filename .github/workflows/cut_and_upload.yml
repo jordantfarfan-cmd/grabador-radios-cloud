@@ -1,0 +1,90 @@
+name: "✂️ Plan B: Cortar y Subir a YouTube"
+
+on:
+  workflow_dispatch:
+    inputs:
+      show:
+        description: "1. Elige el programa grabado"
+        required: true
+        type: choice
+        options:
+          - MODA EL JUERGON DE MODA
+          - PLANETA PLANETA WEEKEND
+          - ONDA CERO LA TOCADA
+          - ONDA CERO LA HORA REMIX
+          - LA ZONA ZONA WEEKEND
+          - LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON
+          - LA ZONA CLASICOS DEL REGGAETON
+          - STUDIO SESSIONS
+          - STUDIO MODO LATIN
+          - OXIGENO BAR OXIGENO
+          - PANAMERICANA PANAMIX
+          - VIVA FM FIESTA PRIVADA
+      start_time:
+        description: "2. Minuto exacto donde empieza el mix (ej. 07:35 o 12:15)"
+        required: true
+        default: "00:00"
+        type: string
+      end_time:
+        description: "3. (Opcional) Minuto de corte final (ej. 05:55:00). Déjalo vacío para ir hasta el final"
+        required: false
+        default: ""
+        type: string
+      date:
+        description: "4. (Opcional) Fecha YYYY-MM-DD (déjalo vacío para usar la grabación más reciente)"
+        required: false
+        default: ""
+        type: string
+      title:
+        description: "5. (Opcional) Título personalizado para YouTube"
+        required: false
+        default: ""
+        type: string
+      privacy:
+        description: "6. Visibilidad en YouTube"
+        required: true
+        type: choice
+        default: private
+        options:
+          - private
+          - unlisted
+          - public
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  cut-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg y dependencias de YouTube
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
+      - name: Cortar (Stream Copy), empaquetar 1080p y subir a YouTube
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+        run: |
+          ARGS=(
+            --show "${{ github.event.inputs.show }}"
+            --start "${{ github.event.inputs.start_time }}"
+            --privacy "${{ github.event.inputs.privacy }}"
+          )
+          if [ -n "${{ github.event.inputs.end_time }}" ]; then
+            ARGS+=(--end "${{ github.event.inputs.end_time }}")
+          fi
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            ARGS+=(--date "${{ github.event.inputs.date }}")
+          fi
+          if [ -n "${{ github.event.inputs.title }}" ]; then
+            ARGS+=(--title "${{ github.event.inputs.title }}")
+          fi
+          python3 scripts/cut_and_upload.py "${ARGS[@]}"

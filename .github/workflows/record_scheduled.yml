@@ -1,170 +1,429 @@
-name: "Grabador de Radios Programado"
+name: "Grabación Automática de Radios (Plan B)"
 
 on:
   schedule:
-    # Horarios automáticos en UTC (GMT-5 de Lima)
-    # 12:00 PM Lima = 17:00 UTC (Lunes a Sábado: Panamericana Panamix)
-    - cron: '0 17 * * 1-6'
-    # 03:00 PM Lima = 20:00 UTC (Viernes: La Zona Clásicos)
-    - cron: '0 20 * * 5'
-    # 06:00 PM Lima = 23:00 UTC (Sábado y Domingo: La Zona Zona Weekend Clásicos - 6h)
-    - cron: '0 23 * * 6,0'
-    # 07:00 PM Lima = 00:00 UTC (Viernes y Sábado: Viva FM Fiesta Privada)
-    - cron: '0 0 * * 6,0'
-    # 08:00 PM Lima = 01:00 UTC (Viernes y Sábado: Moda, Planeta, Studio Sessions)
-    - cron: '0 1 * * 6,0'
-    # 09:00 PM Lima = 02:00 UTC (Onda Cero, Oxígeno, La Zona Weekend)
-    - cron: '0 2 * * *'
-    # 10:00 PM Lima = 03:00 UTC (Sábado: Panamericana Panamix Noche)
-    - cron: '0 3 * * 0'
+    # Lima = UTC - 5 horas
+    # 1) Lun-Vie 12:00 PM Lima -> 16:30 UTC (arranca 11:30 AM Lima para cubrir retrasos de GitHub)
+    - cron: '30 16 * * 1-5'
+    # 2) Viernes 3:00 PM Lima -> 19:30 UTC (arranca 2:30 PM Lima)
+    - cron: '30 19 * * 5'
+    # 3) Vie-Sáb Viva FM 7:00 PM Lima -> 23:30 UTC (sin VPN, independiente)
+    - cron: '30 23 * * 5,6'
+    # 4) Sáb-Dom Noche (desde 6:00 PM Lima) -> 22:25 UTC (arranca 5:25 PM Lima)
+    - cron: '25 22 * * 6,0'
+    # 5) Lun-Vie Noche (desde 8:00 PM Vie / 9:00 PM L-J Lima) -> 00:25 UTC Mar-Sáb (arranca 7:25 PM Lima)
+    - cron: '25 0 * * 2-6'
+
   workflow_dispatch:
     inputs:
-      manual_show:
-        description: 'Nombre del programa a grabar manualmente'
-        required: false
-        default: 'AUTO'
+      window:
+        description: "Ventana a ejecutar manualmente"
+        required: true
         type: choice
         options:
-          - 'AUTO'
-          - 'MODA EL JUERGON DE MODA'
-          - 'PLANETA PLANETA WEEKEND'
-          - 'ONDA CERO LA TOCADA'
-          - 'PANAMERICANA PANAMIX'
-          - 'STUDIO SESSIONS'
-          - 'LA ZONA ZONA WEEKEND'
-          - 'OXIGENO BAR OXIGENO'
-          - 'VIVA FM FIESTA PRIVADA'
-          - 'LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON'
-      manual_duration_seconds:
-        description: 'Duración en segundos si se ejecuta manualmente (ej. 14400 para 4h)'
+          - night
+          - daytime_12
+          - daytime_15
+          - viva_night
+      override_day:
+        description: "Forzar día (0=Dom, 1=Lun, ..., 5=Vie, 6=Sáb, -1=Hoy automático Lima)"
         required: false
-        default: '14400'
+        default: "-1"
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  determine_shows:
-    name: "Identificar programas activos"
+  # =========================================================================
+  # VENTANA DÍA 12 PM (Lun-Vie: Panamericana Panamix) - Con VPN ProtonVPN
+  # =========================================================================
+  daytime_12:
+    if: github.event.schedule == '30 16 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_12')
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    timeout-minutes: 150
     steps:
-      - name: "Clonar repositorio"
-        uses: actions/checkout@v4
-
-      - name: "Calcular matriz de radios activas según día y hora GMT-5"
-        id: set-matrix
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg y wireproxy
         run: |
-          node -e '
-            const fs = require("fs");
-            const config = JSON.parse(fs.readFileSync("config/stations.json", "utf8"));
-            const manual = "${{ inputs.manual_show }}";
-            const manualDuration = parseInt("${{ inputs.manual_duration_seconds }}") || 14400;
-
-            const GITHUB_COVERS = config.covers_base_url;
-            const STATIONS = config.stations;
-
-            const now = new Date();
-            const lima = new Date(now.toLocaleString("en-US", { timeZone: "America/Lima" }));
-            const day = lima.getDay(); // 0: Sun, 1: Mon, ... 5: Fri, 6: Sat
-            const hour = lima.getHours();
-            const min = lima.getMinutes();
-            const timeVal = hour * 60 + min;
-
-            console.log(`Hora Lima detectada: ${lima.toISOString()} (Día: ${day}, Hora: ${hour}:${min})`);
-
-            let shows = [];
-
-            // Si es ejecución manual específica
-            if (manual && manual !== "AUTO") {
-              const coverUrl = `${GITHUB_COVERS}${encodeURIComponent(manual)}.png`;
-              let streamUrl = "";
-              let folder = "Grabaciones_Radio/Manual";
-
-              if (manual.includes("MODA")) { streamUrl = STATIONS.MODA.stream_url; folder = STATIONS.MODA.gdrive_folder; }
-              else if (manual.includes("PLANETA")) { streamUrl = STATIONS.PLANETA.stream_url; folder = STATIONS.PLANETA.gdrive_folder; }
-              else if (manual.includes("ONDA CERO")) { streamUrl = STATIONS.ONDA_CERO.stream_url; folder = STATIONS.ONDA_CERO.gdrive_folder; }
-              else if (manual.includes("PANAMERICANA")) { streamUrl = STATIONS.PANAMERICANA.stream_url; folder = STATIONS.PANAMERICANA.gdrive_folder; }
-              else if (manual.includes("STUDIO")) { streamUrl = STATIONS.STUDIO_92.stream_url; folder = STATIONS.STUDIO_92.gdrive_folder; }
-              else if (manual.includes("LA ZONA")) { streamUrl = STATIONS.LA_ZONA.stream_url; folder = STATIONS.LA_ZONA.gdrive_folder; }
-              else if (manual.includes("OXIGENO")) { streamUrl = STATIONS.OXIGENO.stream_url; folder = STATIONS.OXIGENO.gdrive_folder; }
-              else if (manual.includes("VIVA")) { streamUrl = STATIONS.VIVA_FM.stream_url; folder = STATIONS.VIVA_FM.gdrive_folder; }
-
-              shows.push({ name: manual, url: streamUrl, cover: coverUrl, duration: manualDuration, folder });
-            } else {
-              // Detección automática por horario y día
-              // 1. Panamericana Panamix (12:00 PM Lima)
-              if (hour === 12 && day >= 1 && day <= 6) {
-                shows.push({ name: "PANAMERICANA PANAMIX", url: STATIONS.PANAMERICANA.stream_url, cover: `${GITHUB_COVERS}PANAMERICANA%20PANAMIX.png`, duration: 3600, folder: STATIONS.PANAMERICANA.gdrive_folder });
-              }
-              // 2. La Zona Clásicos (3:00 PM Viernes)
-              if (hour === 15 && day === 5) {
-                shows.push({ name: "LA ZONA CLASICOS DEL REGGAETON", url: STATIONS.LA_ZONA.stream_url, cover: `${GITHUB_COVERS}LA%20ZONA%20CLASICOS%20DEL%20REGGAETON.png`, duration: 3600, folder: STATIONS.LA_ZONA.gdrive_folder });
-              }
-              // 3. Viva FM (7:00 PM Viernes y Sábado)
-              if (hour === 19 && (day === 5 || day === 6)) {
-                shows.push({ name: "VIVA FM FIESTA PRIVADA", url: STATIONS.VIVA_FM.stream_url, cover: `${GITHUB_COVERS}VIVA%20FM%20FIESTA%20PRIVADA.png`, duration: 18000, folder: STATIONS.VIVA_FM.gdrive_folder });
-              }
-              // 4. Moda, Planeta, Studio Sessions (8:00 PM Viernes y Sábado)
-              if (hour === 20 && (day === 5 || day === 6)) {
-                shows.push({ name: "MODA EL JUERGON DE MODA", url: STATIONS.MODA.stream_url, cover: `${GITHUB_COVERS}MODA%20EL%20JUERGON%20DE%20MODA.png`, duration: 14400, folder: STATIONS.MODA.gdrive_folder });
-                shows.push({ name: "PLANETA PLANETA WEEKEND", url: STATIONS.PLANETA.stream_url, cover: `${GITHUB_COVERS}PLANETA%20PLANETA%20WEEKEND.png`, duration: 14400, folder: STATIONS.PLANETA.gdrive_folder });
-                shows.push({ name: "STUDIO SESSIONS", url: STATIONS.STUDIO_92.stream_url, cover: `${GITHUB_COVERS}STUDIO%20SESSIONS.png`, duration: 14400, folder: STATIONS.STUDIO_92.gdrive_folder });
-              }
-              // 5. Onda Cero, Oxígeno, La Zona Weekend (9:00 PM)
-              if (hour === 21) {
-                if (day >= 1 && day <= 4) {
-                  shows.push({ name: "ONDA CERO LA HORA REMIX", url: STATIONS.ONDA_CERO.stream_url, cover: `${GITHUB_COVERS}ONDA%20CERO%20LA%20HORA%20REMIX.png`, duration: 3600, folder: STATIONS.ONDA_CERO.gdrive_folder });
-                }
-                if (day === 5 || day === 6) {
-                  shows.push({ name: "ONDA CERO LA TOCADA", url: STATIONS.ONDA_CERO.stream_url, cover: `${GITHUB_COVERS}ONDA%20CERO%20LA%20TOCADA.png`, duration: 10800, folder: STATIONS.ONDA_CERO.gdrive_folder });
-                  shows.push({ name: "OXIGENO BAR OXIGENO", url: STATIONS.OXIGENO.stream_url, cover: `${GITHUB_COVERS}OXIGENO%20BAR%20OXIGENO.png`, duration: 10800, folder: STATIONS.OXIGENO.gdrive_folder });
-                  shows.push({ name: "LA ZONA ZONA WEEKEND", url: STATIONS.LA_ZONA.stream_url, cover: `${GITHUB_COVERS}LA%20ZONA%20ZONA%20WEEKEND.png`, duration: 10800, folder: STATIONS.LA_ZONA.gdrive_folder });
-                }
-                if (day === 0) {
-                  shows.push({ name: "MODA EL JUERGON DE MODA", url: STATIONS.MODA.stream_url, cover: `${GITHUB_COVERS}MODA%20EL%20JUERGON%20DE%20MODA.png`, duration: 10800, folder: STATIONS.MODA.gdrive_folder });
-                }
-              }
-            }
-
-            console.log(`Programas detectados (${shows.length}):`, JSON.stringify(shows));
-            const matrixJson = JSON.stringify({ include: shows });
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${matrixJson}\n`);
-          '
-
-  record:
-    name: "Grabar: ${{ matrix.name }}"
-    needs: determine_shows
-    if: ${{ fromJson(needs.determine_shows.outputs.matrix).include[0] != null }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.determine_shows.outputs.matrix) }}
-    steps:
-      - name: "Clonar repositorio"
-        uses: actions/checkout@v4
-
-      - name: "Instalar FFmpeg y rclone"
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg rclone
-
-      - name: "Configurar rclone"
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Grabar daytime_12 vía ProtonVPN y generar preview
         env:
-          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+          PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
         run: |
-          if [ -n "$RCLONE_CONFIG_DATA" ]; then
-            mkdir -p ~/.config/rclone
-            echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
-          fi
-
-      - name: "Ejecutar grabación programada"
-        run: |
-          chmod +x scripts/record_radio.sh
-          ./scripts/record_radio.sh "${{ matrix.name }}" "${{ matrix.url }}" "${{ matrix.cover }}" "${{ matrix.duration }}" "${{ matrix.folder }}"
-
-      - name: "Subir copia de seguridad como Artefacto (1 día)"
+          python3 -c '
+          import os, re
+          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
+          lines = []
+          for line in raw.splitlines():
+              s = line.strip()
+              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
+              elif s.startswith("Address ="):
+                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
+                  if v4: line = "Address = " + ", ".join(v4)
+              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
+              lines.append(line)
+              if s == "[Interface]": lines.append("MTU = 1320")
+              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
+          conf = "\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n"
+          open("wireproxy.conf", "w").write(conf)
+          '
+          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
+          WP_PID=$!
+          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
+          sleep 4
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window daytime_12 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/finalize_audio.py
+      - name: Subir Preview Día 12
+        if: always() && env.LOGICAL_DATE != ''
         uses: actions/upload-artifact@v4
         with:
-          name: "Backup_${{ matrix.name }}"
-          path: temp_*/*.mp4
+          name: Previews_Dia12__${{ env.LOGICAL_DATE }}
+          path: previews/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio Panamericana Día
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}
+          path: final_audios/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN ProtonVPN
+  # =========================================================================
+  daytime_15:
+    if: github.event.schedule == '30 19 * * 5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_15')
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg y wireproxy
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Grabar daytime_15 vía ProtonVPN y generar preview
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+        run: |
+          python3 -c '
+          import os
+          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
+          lines = []
+          for line in raw.splitlines():
+              s = line.strip()
+              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
+              elif s.startswith("Address ="):
+                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
+                  if v4: line = "Address = " + ", ".join(v4)
+              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
+              lines.append(line)
+              if s == "[Interface]": lines.append("MTU = 1320")
+              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
+          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
+          '
+          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
+          WP_PID=$!
+          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
+          sleep 4
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window daytime_15 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/finalize_audio.py
+      - name: Subir Preview Día 15
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Previews_Dia15__${{ env.LOGICAL_DATE }}
+          path: previews/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio La Zona Clásicos 3PM
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_LA_ZONA_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}
+          path: final_audios/LA_ZONA_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # VENTANA VIVA FM NOCHE (Vie-Sáb 7 PM - 12 AM) - Directo sin VPN
+  # =========================================================================
+  viva_night:
+    if: github.event.schedule == '30 23 * * 5,6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'viva_night')
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Grabar Viva FM directo y generar preview
+        run: |
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window viva_night --override-day "$OVERRIDE"
+          python3 scripts/finalize_audio.py
+      - name: Subir Preview Viva FM
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Previews_VivaFM__${{ env.LOGICAL_DATE }}
+          path: previews/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio Viva FM Fiesta Privada
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_VIVA_FM_FIESTA_PRIVADA__${{ env.LOGICAL_DATE }}
+          path: final_audios/VIVA_FM_FIESTA_PRIVADA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Única conexión ProtonVPN activa
+  # =========================================================================
+  night_block_1:
+    if: github.event.schedule == '25 22 * * 6,0' || github.event.schedule == '25 0 * * 2-6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg y wireproxy
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Capturar Bloque 1 Noche vía ProtonVPN
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+        run: |
+          python3 -c '
+          import os
+          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
+          lines = []
+          for line in raw.splitlines():
+              s = line.strip()
+              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
+              elif s.startswith("Address ="):
+                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
+                  if v4: line = "Address = " + ", ".join(v4)
+              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
+              lines.append(line)
+              if s == "[Interface]": lines.append("MTU = 1320")
+              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
+          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
+          '
+          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
+          WP_PID=$!
+          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
+          sleep 4
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window night_block_1 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+      - name: Subir partes temporales Bloque 1
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmp-night-part1-${{ github.run_id }}
+          path: captured/
           retention-days: 1
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # NOCHE BLOQUE 2 (10:50 PM Lima -> 4:02 AM Lima) - Reutiliza ProtonVPN al cerrar Bloque 1
+  # =========================================================================
+  night_block_2:
+    needs: night_block_1
+    if: always() && needs.night_block_1.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg y wireproxy
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Capturar Bloque 2 Noche vía ProtonVPN
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+        run: |
+          python3 -c '
+          import os
+          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
+          lines = []
+          for line in raw.splitlines():
+              s = line.strip()
+              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
+              elif s.startswith("Address ="):
+                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
+                  if v4: line = "Address = " + ", ".join(v4)
+              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
+              lines.append(line)
+              if s == "[Interface]": lines.append("MTU = 1320")
+              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
+          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
+          '
+          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
+          WP_PID=$!
+          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
+          sleep 4
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window night_block_2 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+      - name: Subir partes temporales Bloque 2
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmp-night-part2-${{ github.run_id }}
+          path: captured/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # CONSOLIDACIÓN NOCHE: Une Parte 1 + Parte 2, genera Previews MP3 y guarda Audios Plan B
+  # =========================================================================
+  night_finalize:
+    needs: [night_block_1, night_block_2]
+    if: always() && (needs.night_block_1.result == 'success' || needs.night_block_2.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Descargar partes de Bloque 1
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tmp-night-part1-${{ github.run_id }}
+          path: captured
+      - name: Descargar partes de Bloque 2
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tmp-night-part2-${{ github.run_id }}
+          path: captured
+      - name: Consolidar audios y generar Previews MP3 (45 min)
+        run: python3 scripts/finalize_audio.py
+
+      - name: Subir Pack de Previews MP3 (Noche)
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Previews_Noche__${{ env.LOGICAL_DATE }}
+          path: previews/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio MODA EL JUERGON DE MODA
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_MODA_EL_JUERGON_DE_MODA__${{ env.LOGICAL_DATE }}
+          path: final_audios/MODA_EL_JUERGON_DE_MODA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio PLANETA PLANETA WEEKEND
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_PLANETA_PLANETA_WEEKEND__${{ env.LOGICAL_DATE }}
+          path: final_audios/PLANETA_PLANETA_WEEKEND__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio ONDA CERO LA TOCADA
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_ONDA_CERO_LA_TOCADA__${{ env.LOGICAL_DATE }}
+          path: final_audios/ONDA_CERO_LA_TOCADA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio ONDA CERO LA HORA REMIX
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_ONDA_CERO_LA_HORA_REMIX__${{ env.LOGICAL_DATE }}
+          path: final_audios/ONDA_CERO_LA_HORA_REMIX__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio LA ZONA ZONA WEEKEND
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_LA_ZONA_ZONA_WEEKEND__${{ env.LOGICAL_DATE }}
+          path: final_audios/LA_ZONA_ZONA_WEEKEND__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}
+          path: final_audios/LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio STUDIO SESSIONS
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}
+          path: final_audios/STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio STUDIO MODO LATIN
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}
+          path: final_audios/STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio OXIGENO BAR OXIGENO
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}
+          path: final_audios/OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Audio PANAMERICANA PANAMIX (Noche)
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}
+          path: final_audios/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
           if-no-files-found: ignore
