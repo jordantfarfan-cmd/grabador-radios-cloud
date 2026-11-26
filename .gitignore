@@ -7,3 +7,4 @@ partes_descargadas/
 wireproxy.conf
 wireproxy.log
 client_secret*.json
+*.conf

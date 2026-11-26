@@ -19,6 +19,8 @@ def clean_wireguard_conf(raw_conf: str, bind_addr: str = "127.0.0.1:8080") -> st
     lines = []
     for line in raw.splitlines():
         s = line.strip()
+        if s.startswith("MTU =") or s.startswith("PersistentKeepalive ="):
+            continue
         if s.startswith("DNS ="):
             line = "DNS = 1.1.1.1"
         elif s.startswith("Address ="):
