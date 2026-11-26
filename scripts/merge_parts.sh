@@ -47,14 +47,21 @@ ffmpeg -y -f concat -safe 0 -i lista.txt -c copy audio_unido.ts
 FECHA_LIMA=$(TZ="America/Lima" date +"%Y-%m-%d_%H-%M")
 OUTPUT_MP4="${SHOW_NAME} - ${FECHA_LIMA}.mp4"
 
-echo "--> Generando MP4 unificado final (Color BT.709)..."
+AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio_unido.ts || true)
+DUR_OPT=()
+if [ -n "$AUDIO_DUR" ] && [ "$AUDIO_DUR" != "N/A" ]; then
+    DUR_OPT=(-t "$AUDIO_DUR")
+fi
+
+echo "--> Generando MP4 unificado final (Color BT.709, Duración: ${AUDIO_DUR:-auto}s)..."
 ffmpeg -y \
-    -loop 1 -framerate 1 -i cover.png \
+    -loop 1 -framerate 1 "${DUR_OPT[@]}" -i cover.png \
     -i audio_unido.ts \
     -vf "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2,scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p" \
     -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv \
     -c:v libx264 -tune stillimage -preset ultrafast -crf 18 \
     -c:a libopus -b:a 320k \
+    "${DUR_OPT[@]}" \
     -shortest \
     -movflags +faststart \
     "$OUTPUT_MP4"
