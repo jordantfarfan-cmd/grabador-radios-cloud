@@ -87,7 +87,13 @@ while [ $(date +%s) -lt $TARGET_END ]; do
         PROXY_OPTS=(-http_proxy "$STREAM_HTTP_PROXY")
     fi
 
-    http_proxy="${STREAM_HTTP_PROXY:-}" https_proxy="${STREAM_HTTP_PROXY:-}" ffmpeg -y \
+    # Perro guardián (watchdog): evita que un socket colgado trabe el proceso más allá del tiempo restante
+    TIMEOUT_PREFIX=()
+    if command -v timeout &> /dev/null; then
+        TIMEOUT_PREFIX=(timeout --signal=INT --kill-after=10 $(( REMAINING + 15 )))
+    fi
+
+    http_proxy="${STREAM_HTTP_PROXY:-}" https_proxy="${STREAM_HTTP_PROXY:-}" "${TIMEOUT_PREFIX[@]}" ffmpeg -y \
         -reconnect 1 \
         -reconnect_streamed 1 \
         -reconnect_delay_max 5 \

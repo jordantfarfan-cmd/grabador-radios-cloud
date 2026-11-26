@@ -90,21 +90,55 @@ jobs:
           COVERS="https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main"
 
           echo "--> Lanzando las 8 grabaciones en paralelo por ${DUR} segundos..."
+          PIDS=()
 
           # Las 7 emisoras de Mediastream pasan por el túnel VPN (Rumanía) con Slot Index 1..7
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=1 ./scripts/record_radio.sh "MODA EL JUERGON DE MODA" "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true" "$COVERS/MODA%20EL%20JUERGON%20DE%20MODA.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/moda.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=2 ./scripts/record_radio.sh "PLANETA PLANETA WEEKEND" "https://mdstrm.com/audio/6839e274f40e6b9832e37633/live.m3u8?dnt=true" "$COVERS/PLANETA%20PLANETA%20WEEKEND.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/planeta.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=3 ./scripts/record_radio.sh "ONDA CERO LA TOCADA" "https://mdstrm.com/audio/6598b65ab398c90871aff8cc/live.m3u8?dnt=true" "$COVERS/ONDA%20CERO%20LA%20TOCADA.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/ondacero.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=4 ./scripts/record_radio.sh "PANAMERICANA PANAMIX" "https://mdstrm.com/audio/6598b62dded1380470f4e539/live.m3u8?dnt=true" "$COVERS/PANAMERICANA%20PANAMIX.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/panamericana.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=5 ./scripts/record_radio.sh "STUDIO SESSIONS" "https://mdstrm.com/audio/5fada553978fe1080e3ac5ea/live.m3u8?dnt=true" "$COVERS/STUDIO%20SESSIONS.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/studio.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=6 ./scripts/record_radio.sh "LA ZONA ZONA WEEKEND" "https://mdstrm.com/audio/5fada54116646e098d97e6a5/live.m3u8?dnt=true" "$COVERS/LA%20ZONA%20ZONA%20WEEKEND.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/lazona.log 2>&1 &
+          PIDS+=($!)
           STREAM_HTTP_PROXY="http://127.0.0.1:8080" YT_SLOT_INDEX=7 ./scripts/record_radio.sh "OXIGENO BAR OXIGENO" "https://mdstrm.com/audio/5fab0687bcd6c2389ee9480c/live.m3u8?dnt=true" "$COVERS/OXIGENO%20BAR%20OXIGENO.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/oxigeno.log 2>&1 &
+          PIDS+=($!)
 
           # Viva FM (TuPanel directo sin anuncios DAI) - Slot Index 8
           YT_SLOT_INDEX=8 ./scripts/record_radio.sh "VIVA FM FIESTA PRIVADA" "https://tupanel.info:8780/stream" "$COVERS/VIVA%20FM%20FIESTA%20PRIVADA.png" "$DUR" "Grabaciones_Radio/Pruebas" > logs/viva.log 2>&1 &
+          PIDS+=($!)
 
           echo "--> Esperando a que las 8 radios terminen de grabar y empaquetar..."
-          wait
+          START_WAIT=$(date +%s)
+          while true; do
+            ALIVE=0
+            for pid in "${PIDS[@]}"; do
+              if kill -0 "$pid" 2>/dev/null; then
+                ALIVE=$((ALIVE + 1))
+              fi
+            done
+            if [ $ALIVE -eq 0 ]; then
+              break
+            fi
+            sleep 30
+            ELAPSED=$(( $(date +%s) - START_WAIT ))
+            ACTIVE_FFMPEG=$(pgrep -c ffmpeg || echo 0)
+            MP4_DONE=$(ls temp_*/*.mp4 2>/dev/null | wc -l || echo 0)
+            echo "   [+${ELAPSED}s] Radios en curso: ${ALIVE}/8 | FFmpeg activos: ${ACTIVE_FFMPEG} | MP4 listos: ${MP4_DONE}/8"
+            if [ $ELAPSED -gt $(( DUR + 240 )) ]; then
+              echo "⚠️ Tiempo límite excedido. Cerrando procesos rezagados..."
+              pkill -f ffmpeg || true
+              sleep 3
+              break
+            fi
+          done
+          for pid in "${PIDS[@]}"; do
+            wait "$pid" || true
+          done
 
           echo "--> Resumen de resultados:"
           for f in logs/*.log; do
