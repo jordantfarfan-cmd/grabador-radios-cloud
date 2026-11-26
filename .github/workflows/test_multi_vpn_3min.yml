@@ -54,9 +54,13 @@ jobs:
           lines = []
           for line in conf.splitlines():
               s = line.strip()
-              if not s or s.startswith("#") or s.startswith("MTU") or s.startswith("PersistentKeepalive"):
+              if not s or s.startswith("#") or s.startswith("MTU") or s.startswith("PersistentKeepalive") or s.startswith("DNS"):
                   continue
-              if s.startswith("Address"):
+              if s.startswith("[Interface]"):
+                  lines.append("[Interface]")
+                  lines.append("DNS = 1.1.1.1")
+                  lines.append("MTU = 1320")
+              elif s.startswith("Address"):
                   parts = [p.strip() for p in s.split("=", 1)[1].split(",") if ":" not in p]
                   lines.append("Address = " + ", ".join(parts))
               elif s.startswith("AllowedIPs"):
@@ -74,10 +78,10 @@ jobs:
           wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
           WP_PID=$!
           trap "kill $WP_PID 2>/dev/null || true" EXIT
-          sleep 3
+          sleep 5
 
           echo "--> Verificando IP del túnel VPN:"
-          curl -sS --max-time 15 -x http://127.0.0.1:8080 https://ipinfo.io/json || (cat wireproxy.log && exit 1)
+          curl -sS --retry 3 --retry-delay 3 --max-time 20 -x http://127.0.0.1:8080 https://ipinfo.io/json || (cat wireproxy.log && exit 1)
           echo ""
 
           chmod +x scripts/record_radio.sh
