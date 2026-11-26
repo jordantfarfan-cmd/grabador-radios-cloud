@@ -86,7 +86,7 @@ while [ $(date +%s) -lt $TARGET_END ]; do
         -reconnect 1 \
         -reconnect_streamed 1 \
         -reconnect_delay_max 5 \
-        -timeout 15000000 \
+        -rw_timeout 15000000 \
         "${PROXY_OPTS[@]}" \
         -i "$STREAM_URL" \
         -t "$REMAINING" \

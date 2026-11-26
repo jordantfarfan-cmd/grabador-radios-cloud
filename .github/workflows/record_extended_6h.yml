@@ -36,7 +36,7 @@ jobs:
           STREAM_URL="https://mdstrm.com/audio/5fada54116646e098d97e6a5/icecast.audio"
           DURACION="${{ inputs.block1_seconds || '10800' }}"
           echo "Grabando Bloque 1 por ${DURACION}s..."
-          ffmpeg -y -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -timeout 15000000 \
+          ffmpeg -y -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -rw_timeout 15000000 \
             -i "$STREAM_URL" -t "$DURACION" -c:a copy -f mpegts partes/parte_001.ts
 
       - name: "Subir Artefacto Bloque 1 (1 día)"
@@ -63,7 +63,7 @@ jobs:
           STREAM_URL="https://mdstrm.com/audio/5fada54116646e098d97e6a5/icecast.audio"
           DURACION="${{ inputs.block2_seconds || '10800' }}"
           echo "Grabando Bloque 2 por ${DURACION}s..."
-          ffmpeg -y -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -timeout 15000000 \
+          ffmpeg -y -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -rw_timeout 15000000 \
             -i "$STREAM_URL" -t "$DURACION" -c:a copy -f mpegts partes/parte_002.ts
 
       - name: "Subir Artefacto Bloque 2 (1 día)"
