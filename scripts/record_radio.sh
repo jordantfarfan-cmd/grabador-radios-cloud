@@ -111,31 +111,43 @@ else
     ffmpeg -y -f concat -safe 0 -i lista.txt -c copy audio_completo.ts
 fi
 
-# 4. Empaquetar a MP4 Final (Carátula 1080x1080 1:1, 1 FPS, CRF 18, Opus 320 kbps)
+# 4. Empaquetar a MP4 Final y Subir (con cola flock para proteger RAM en Oracle 1GB)
 FECHA_LIMA=$(TZ="America/Lima" date +"%Y-%m-%d_%H-%M")
 OUTPUT_MP4="${SHOW_NAME} - ${FECHA_LIMA}.mp4"
 
-echo "--> Generando MP4 final con carátula 1080x1080 y audio Opus 320 kbps (Color BT.709)..."
-ffmpeg -y \
-    -loop 1 -framerate 1 -i cover.png \
-    -i audio_completo.ts \
-    -vf "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2,scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p" \
-    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv \
-    -c:v libx264 -tune stillimage -preset ultrafast -crf 18 \
-    -c:a libopus -b:a 320k \
-    -shortest \
-    -movflags +faststart \
-    "$OUTPUT_MP4"
+pack_and_upload() {
+    echo "--> Generando MP4 final con carátula 1080x1080 y audio Opus 320 kbps (Color BT.709)..."
+    ffmpeg -y \
+        -loop 1 -framerate 1 -i cover.png \
+        -i audio_completo.ts \
+        -vf "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2,scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p" \
+        -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv \
+        -c:v libx264 -tune stillimage -preset ultrafast -crf 18 \
+        -c:a libopus -b:a 320k \
+        -shortest \
+        -movflags +faststart \
+        "$OUTPUT_MP4"
 
-echo "--> MP4 generado con éxito: $OUTPUT_MP4 (Tamaño: $(du -h "$OUTPUT_MP4" | cut -f1))"
+    echo "--> MP4 generado con éxito: $OUTPUT_MP4 (Tamaño: $(du -h "$OUTPUT_MP4" | cut -f1))"
 
-# 5. Subida automática a Google Drive si rclone está configurado
-if command -v rclone &> /dev/null && [ -f "$HOME/.config/rclone/rclone.conf" ]; then
-    echo "--> Subiendo a Google Drive ($GDRIVE_FOLDER)..."
-    rclone move "$OUTPUT_MP4" "gdrive:$GDRIVE_FOLDER" --progress
-    echo "--> ¡Subida a Google Drive completada!"
+    # 5. Subida automática a Google Drive si rclone está configurado
+    if command -v rclone &> /dev/null && [ -f "$HOME/.config/rclone/rclone.conf" ]; then
+        echo "--> Subiendo a Google Drive ($GDRIVE_FOLDER)..."
+        rclone move "$OUTPUT_MP4" "gdrive:$GDRIVE_FOLDER" --progress
+        echo "--> ¡Subida a Google Drive completada!"
+    else
+        echo "--> [Aviso] rclone no está configurado. El archivo MP4 se conserva localmente."
+    fi
+}
+
+if command -v flock &> /dev/null; then
+    echo "--> Esperando turno en cola (flock) para empaquetar sin saturar RAM..."
+    (
+        flock -x 200
+        pack_and_upload
+    ) 200>/tmp/radio_muxer.lock
 else
-    echo "--> [Aviso] rclone no está configurado. El archivo MP4 se conserva localmente."
+    pack_and_upload
 fi
 
 # Limpieza de archivos temporales
