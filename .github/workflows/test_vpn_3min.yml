@@ -82,10 +82,20 @@ jobs:
           echo ""
 
           echo "--> Inspeccionando playlist .m3u8 de Moda a través del VPN:"
-          MASTER=$(curl -sS --max-time 15 -x http://127.0.0.1:8080 "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true")
-          CHUNK_URL=$(echo "$MASTER" | grep -E '^https?://' | head -n 1)
-          echo "Chunklist URL: $CHUNK_URL"
-          PLAYLIST=$(curl -sS --max-time 15 -x http://127.0.0.1:8080 "$CHUNK_URL")
+          MASTER=$(curl -sSL --max-time 15 -x http://127.0.0.1:8080 "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true" | tr -d '\r')
+          if echo "$MASTER" | grep -q "#EXTINF"; then
+            PLAYLIST="$MASTER"
+          else
+            CHUNK_URL=$(echo "$MASTER" | grep -E '^https?://' | head -n 1)
+            echo "Chunklist URL: $CHUNK_URL"
+            if [ -n "$CHUNK_URL" ]; then
+              PLAYLIST=$(curl -sSL --max-time 15 -x http://127.0.0.1:8080 "$CHUNK_URL" | tr -d '\r')
+            else
+              echo "Aviso: No se encontró URL de chunklist. Contenido recibido:"
+              echo "$MASTER" | head -n 20
+              PLAYLIST="$MASTER"
+            fi
+          fi
           echo "$PLAYLIST" | head -n 25
           if echo "$PLAYLIST" | grep -qE "X-AD-ID|/ad_"; then
             echo "⚠️ AVISO: Siguen apareciendo etiquetas de anuncio (X-AD-ID / ad_) con esta IP."
