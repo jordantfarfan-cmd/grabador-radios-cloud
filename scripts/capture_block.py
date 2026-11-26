@@ -17,6 +17,12 @@ import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from vpn_manager import VpnManager
+
 LIMA_TZ = ZoneInfo("America/Lima")
 
 
@@ -43,7 +49,7 @@ def safe_slug(name: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in name).strip("_")
 
 
-def record_single_show(show: dict, station: dict, start_min: int, end_min: int, part_num: int, logical_date_str: str, proxy_url: str):
+def record_single_show(show: dict, station: dict, start_min: int, end_min: int, part_num: int, logical_date_str: str, fixed_proxy: str, vpn_mgr: VpnManager | None):
     slug = safe_slug(show["name"])
     out_dir = os.path.join("captured", f"{slug}__{logical_date_str}__part_{part_num}")
     os.makedirs(out_dir, exist_ok=True)
@@ -79,20 +85,29 @@ def record_single_show(show: dict, station: dict, start_min: int, end_min: int, 
     target_end_ts = time.time() + duration_sec
     frag_idx = 1
     frag_files = []
-
-    use_vpn = station.get("use_vpn", True) and bool(proxy_url)
-    env = os.environ.copy()
-    if use_vpn:
-        env["http_proxy"] = proxy_url
-        env["https_proxy"] = proxy_url
-    else:
-        env.pop("http_proxy", None)
-        env.pop("https_proxy", None)
+    fail_streak = 0
+    needs_vpn = station.get("use_vpn", True)
 
     while time.time() < target_end_ts:
         remaining = int(target_end_ts - time.time())
         if remaining <= 2:
             break
+
+        active_proxy = ""
+        if needs_vpn:
+            if fixed_proxy:
+                active_proxy = fixed_proxy
+            elif vpn_mgr and vpn_mgr.has_configs():
+                active_proxy = vpn_mgr.ensure_healthy() or ""
+
+        use_vpn = needs_vpn and bool(active_proxy)
+        env = os.environ.copy()
+        if use_vpn:
+            env["http_proxy"] = active_proxy
+            env["https_proxy"] = active_proxy
+        else:
+            env.pop("http_proxy", None)
+            env.pop("https_proxy", None)
 
         frag_path = os.path.join(out_dir, f"frag_{frag_idx:03d}.ts")
         cmd = [
@@ -104,7 +119,7 @@ def record_single_show(show: dict, station: dict, start_min: int, end_min: int, 
             "-rw_timeout", "15000000",
         ]
         if use_vpn:
-            cmd += ["-http_proxy", proxy_url]
+            cmd += ["-http_proxy", active_proxy]
 
         cmd += [
             "-i", station["url"],
@@ -114,12 +129,29 @@ def record_single_show(show: dict, station: dict, start_min: int, end_min: int, 
             frag_path,
         ]
 
+        t0 = time.time()
         subprocess.run(cmd, env=env)
+        elapsed = time.time() - t0
 
-        if os.path.isfile(frag_path) and os.path.getsize(frag_path) > 0:
+        got_audio = os.path.isfile(frag_path) and os.path.getsize(frag_path) > 4096
+        if got_audio:
             frag_files.append(frag_path)
+            fail_streak = 0
+        else:
+            if os.path.isfile(frag_path):
+                try:
+                    os.remove(frag_path)
+                except OSError:
+                    pass
+            fail_streak += 1
+
+        # Si el fragmento terminó antes de tiempo, verificar salud del túnel VPN y rotar si murió
+        if time.time() < target_end_ts - 5:
+            if needs_vpn and vpn_mgr and vpn_mgr.has_configs() and (not got_audio or elapsed < 25):
+                vpn_mgr.handle_stream_failure()
+
         frag_idx += 1
-        time.sleep(1)
+        time.sleep(min(5, max(1, fail_streak)))
 
     if not frag_files:
         print(f"⚠️ [{show['name']}] No se capturaron fragmentos de audio.")
@@ -132,7 +164,7 @@ def record_single_show(show: dict, station: dict, start_min: int, end_min: int, 
         list_txt = os.path.join(out_dir, "list.txt")
         with open(list_txt, "w", encoding="utf-8") as lf:
             for fp in frag_files:
-                lf.write(f"file '{os.path.basename(fp)}'\n")
+                lf.write(f"file '{os.path.abspath(fp)}'\n")
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "warning", "-f", "concat", "-safe", "0", "-i", list_txt, "-c", "copy", part_ts],
             check=False,
@@ -198,18 +230,37 @@ def main():
     for show, s_m, e_m, p in tasks:
         print(f"  - {show['name']} (Parte {p}): min {s_m} -> min {e_m} ({(e_m - s_m)} min)")
 
-    threads = []
-    for show, s_m, e_m, p in tasks:
-        station = cfg["stations"][show["station"]]
-        t = threading.Thread(
-            target=record_single_show,
-            args=(show, station, s_m, e_m, p, logical_date_str, args.proxy),
-        )
-        t.start()
-        threads.append(t)
+    vpn_tasks = [s_m for show, s_m, _, _ in tasks if cfg["stations"][show["station"]].get("use_vpn", True)]
+    fixed_proxy = args.proxy.strip()
+    vpn_mgr = None if fixed_proxy else VpnManager()
 
-    for t in threads:
-        t.join()
+    if vpn_tasks and vpn_mgr and vpn_mgr.has_configs():
+        earliest_vpn_start = min(vpn_tasks)
+        print(f"⏳ VPN con failover activo ({len(vpn_mgr.configs)} servidor(es) configurado(s)).")
+        while True:
+            _, _, _, c_min = get_logical_now()
+            wait_sec = (earliest_vpn_start - 0.75 - c_min) * 60
+            if wait_sec <= 1:
+                break
+            time.sleep(min(30.0, wait_sec))
+        vpn_mgr.ensure_healthy()
+
+    threads = []
+    try:
+        for show, s_m, e_m, p in tasks:
+            station = cfg["stations"][show["station"]]
+            t = threading.Thread(
+                target=record_single_show,
+                args=(show, station, s_m, e_m, p, logical_date_str, fixed_proxy, vpn_mgr),
+            )
+            t.start()
+            threads.append(t)
+
+        for t in threads:
+            t.join()
+    finally:
+        if vpn_mgr:
+            vpn_mgr.stop()
 
     print("=================================================================")
     print(f" VENTANA {args.window} FINALIZADA.")

@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   # =========================================================================
-  # VENTANA DÍA 12 PM (Lun-Vie: Panamericana Panamix) - Con VPN ProtonVPN
+  # VENTANA DÍA 12 PM (Lun-Vie: Panamericana Panamix) - Con VPN Failover
   # =========================================================================
   daytime_12:
     if: github.event.schedule == '30 16 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_12')
@@ -53,32 +53,16 @@ jobs:
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
-      - name: Grabar daytime_12 vía ProtonVPN y generar preview
+      - name: Grabar daytime_12 con VPN Failover y generar preview
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
+          PROTON_WG_CONF_3: ${{ secrets.PROTON_WG_CONF_3 }}
+          PROTON_WG_CONF_4: ${{ secrets.PROTON_WG_CONF_4 }}
+          PROTON_WG_CONF_5: ${{ secrets.PROTON_WG_CONF_5 }}
         run: |
-          python3 -c '
-          import os
-          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
-          lines = []
-          for line in raw.splitlines():
-              s = line.strip()
-              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
-              elif s.startswith("Address ="):
-                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
-                  if v4: line = "Address = " + ", ".join(v4)
-              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
-              lines.append(line)
-              if s == "[Interface]": lines.append("MTU = 1320")
-              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
-          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
-          '
-          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
-          WP_PID=$!
-          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
-          sleep 4
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
-          python3 scripts/capture_block.py --window daytime_12 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/capture_block.py --window daytime_12 --override-day "$OVERRIDE"
           python3 scripts/finalize_audio.py
       - name: Subir Preview Día 12
         if: always() && env.LOGICAL_DATE != ''
@@ -106,7 +90,7 @@ jobs:
         run: python3 scripts/auto_upload.py
 
   # =========================================================================
-  # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN ProtonVPN
+  # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN Failover
   # =========================================================================
   daytime_15:
     if: github.event.schedule == '30 19 * * 5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_15')
@@ -123,32 +107,16 @@ jobs:
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
-      - name: Grabar daytime_15 vía ProtonVPN y generar preview
+      - name: Grabar daytime_15 con VPN Failover y generar preview
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
+          PROTON_WG_CONF_3: ${{ secrets.PROTON_WG_CONF_3 }}
+          PROTON_WG_CONF_4: ${{ secrets.PROTON_WG_CONF_4 }}
+          PROTON_WG_CONF_5: ${{ secrets.PROTON_WG_CONF_5 }}
         run: |
-          python3 -c '
-          import os
-          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
-          lines = []
-          for line in raw.splitlines():
-              s = line.strip()
-              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
-              elif s.startswith("Address ="):
-                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
-                  if v4: line = "Address = " + ", ".join(v4)
-              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
-              lines.append(line)
-              if s == "[Interface]": lines.append("MTU = 1320")
-              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
-          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
-          '
-          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
-          WP_PID=$!
-          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
-          sleep 4
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
-          python3 scripts/capture_block.py --window daytime_15 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/capture_block.py --window daytime_15 --override-day "$OVERRIDE"
           python3 scripts/finalize_audio.py
       - name: Subir Preview Día 15
         if: always() && env.LOGICAL_DATE != ''
@@ -222,7 +190,7 @@ jobs:
         run: python3 scripts/auto_upload.py
 
   # =========================================================================
-  # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Única conexión ProtonVPN activa
+  # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Con VPN Failover Activo
   # =========================================================================
   night_block_1:
     if: github.event.schedule == '25 22 * * 6,0' || github.event.schedule == '25 0 * * 2-6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
@@ -238,32 +206,16 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
-      - name: Capturar Bloque 1 Noche vía ProtonVPN
+      - name: Capturar Bloque 1 Noche con VPN Failover
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
+          PROTON_WG_CONF_3: ${{ secrets.PROTON_WG_CONF_3 }}
+          PROTON_WG_CONF_4: ${{ secrets.PROTON_WG_CONF_4 }}
+          PROTON_WG_CONF_5: ${{ secrets.PROTON_WG_CONF_5 }}
         run: |
-          python3 -c '
-          import os
-          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
-          lines = []
-          for line in raw.splitlines():
-              s = line.strip()
-              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
-              elif s.startswith("Address ="):
-                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
-                  if v4: line = "Address = " + ", ".join(v4)
-              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
-              lines.append(line)
-              if s == "[Interface]": lines.append("MTU = 1320")
-              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
-          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
-          '
-          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
-          WP_PID=$!
-          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
-          sleep 4
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
-          python3 scripts/capture_block.py --window night_block_1 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/capture_block.py --window night_block_1 --override-day "$OVERRIDE"
       - name: Subir partes temporales Bloque 1
         if: always()
         uses: actions/upload-artifact@v4
@@ -274,7 +226,7 @@ jobs:
           if-no-files-found: ignore
 
   # =========================================================================
-  # NOCHE BLOQUE 2 (10:50 PM Lima -> 4:02 AM Lima) - Reutiliza ProtonVPN al cerrar Bloque 1
+  # NOCHE BLOQUE 2 (10:50 PM Lima -> 4:02 AM Lima) - Con VPN Failover Activo
   # =========================================================================
   night_block_2:
     needs: night_block_1
@@ -291,32 +243,16 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
-      - name: Capturar Bloque 2 Noche vía ProtonVPN
+      - name: Capturar Bloque 2 Noche con VPN Failover
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
+          PROTON_WG_CONF_3: ${{ secrets.PROTON_WG_CONF_3 }}
+          PROTON_WG_CONF_4: ${{ secrets.PROTON_WG_CONF_4 }}
+          PROTON_WG_CONF_5: ${{ secrets.PROTON_WG_CONF_5 }}
         run: |
-          python3 -c '
-          import os
-          raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
-          lines = []
-          for line in raw.splitlines():
-              s = line.strip()
-              if s.startswith("DNS ="): line = "DNS = 1.1.1.1"
-              elif s.startswith("Address ="):
-                  v4 = [x.strip() for x in s.split("=", 1)[1].split(",") if ":" not in x]
-                  if v4: line = "Address = " + ", ".join(v4)
-              elif s.startswith("AllowedIPs ="): line = "AllowedIPs = 0.0.0.0/0"
-              lines.append(line)
-              if s == "[Interface]": lines.append("MTU = 1320")
-              elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
-          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
-          '
-          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
-          WP_PID=$!
-          trap "kill $WP_PID 2>/dev/null || true; rm -f wireproxy.conf" EXIT
-          sleep 4
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
-          python3 scripts/capture_block.py --window night_block_2 --override-day "$OVERRIDE" --proxy "http://127.0.0.1:8080"
+          python3 scripts/capture_block.py --window night_block_2 --override-day "$OVERRIDE"
       - name: Subir partes temporales Bloque 2
         if: always()
         uses: actions/upload-artifact@v4
