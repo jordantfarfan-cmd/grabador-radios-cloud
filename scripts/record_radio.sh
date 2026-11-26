@@ -76,12 +76,18 @@ while [ $(date +%s) -lt $TARGET_END ]; do
     PART_FILE=$(printf "parte_%03d.ts" $PART)
     echo "-> Capturando $PART_FILE (restante: ${REMAINING}s)..."
     
-    # Flags de reconexión y timeout seguro
-    ffmpeg -y \
+    # Flags de reconexión y timeout seguro (usando proxy VPN si STREAM_HTTP_PROXY está definido)
+    PROXY_OPTS=()
+    if [ -n "${STREAM_HTTP_PROXY:-}" ]; then
+        PROXY_OPTS=(-http_proxy "$STREAM_HTTP_PROXY")
+    fi
+
+    http_proxy="${STREAM_HTTP_PROXY:-}" https_proxy="${STREAM_HTTP_PROXY:-}" ffmpeg -y \
         -reconnect 1 \
         -reconnect_streamed 1 \
         -reconnect_delay_max 5 \
         -timeout 15000000 \
+        "${PROXY_OPTS[@]}" \
         -i "$STREAM_URL" \
         -t "$REMAINING" \
         -c:a copy \

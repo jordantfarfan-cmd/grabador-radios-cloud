@@ -1,0 +1,108 @@
+name: "Prueba 3 Minutos - VPN Anti-Anuncios (ProtonVPN WireGuard)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: 'Duración de la prueba en segundos (180 = 3 min)'
+        required: false
+        default: '180'
+
+jobs:
+  test_vpn_moda:
+    name: "Test VPN (Moda 3 min)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Clonar repositorio"
+        uses: actions/checkout@v4
+
+      - name: "Instalar FFmpeg y rclone"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg rclone
+
+      - name: "Instalar Wireproxy (Túnel WireGuard sin cortar GitHub Actions)"
+        run: |
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz
+          chmod +x wireproxy
+          sudo mv wireproxy /usr/local/bin/wireproxy
+          rm -f wireproxy.tar.gz
+
+      - name: "Configurar rclone (si existe el Secret)"
+        env:
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          if [ -n "$RCLONE_CONFIG_DATA" ]; then
+            mkdir -p ~/.config/rclone
+            echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
+          fi
+
+      - name: "Conectar ProtonVPN, verificar .m3u8 y grabar 3 min de Moda"
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
+        run: |
+          if [ -z "$PROTON_WG_CONF" ]; then
+            echo "ERROR: Falta configurar el Secret PROTON_WG_CONF en GitHub."
+            exit 1
+          fi
+
+          # Limpiar posibles líneas IPv6/MTU incompatibles y añadir proxy HTTP local
+          python3 - << 'EOF'
+          import os
+          conf = os.environ["PROTON_WG_CONF"]
+          lines = []
+          for line in conf.splitlines():
+              s = line.strip()
+              if not s or s.startswith("#") or s.startswith("MTU"):
+                  continue
+              if s.startswith("Address"):
+                  parts = [p.strip() for p in s.split("=", 1)[1].split(",") if ":" not in p]
+                  lines.append("Address = " + ", ".join(parts))
+              elif s.startswith("AllowedIPs"):
+                  lines.append("AllowedIPs = 0.0.0.0/0")
+              else:
+                  lines.append(s)
+          lines.append("PersistentKeepalive = 25")
+          lines.append("")
+          lines.append("[http]")
+          lines.append("BindAddress = 127.0.0.1:8080")
+          with open("wireproxy.conf", "w") as f:
+              f.write("\n".join(lines) + "\n")
+          EOF
+
+          # Iniciar wireproxy en segundo plano dentro de este mismo paso
+          wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
+          WP_PID=$!
+          trap "kill $WP_PID 2>/dev/null || true" EXIT
+          sleep 3
+
+          echo "--> Verificando IP pública a través de ProtonVPN:"
+          curl -sS --max-time 15 -x http://127.0.0.1:8080 https://ipinfo.io/json || (cat wireproxy.log && exit 1)
+          echo ""
+
+          echo "--> Inspeccionando playlist .m3u8 de Moda a través del VPN:"
+          MASTER=$(curl -sS --max-time 15 -x http://127.0.0.1:8080 "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true")
+          CHUNK_URL=$(echo "$MASTER" | grep -E '^https?://' | head -n 1)
+          echo "Chunklist URL: $CHUNK_URL"
+          PLAYLIST=$(curl -sS --max-time 15 -x http://127.0.0.1:8080 "$CHUNK_URL")
+          echo "$PLAYLIST" | head -n 25
+          if echo "$PLAYLIST" | grep -qE "X-AD-ID|/ad_"; then
+            echo "⚠️ AVISO: Siguen apareciendo etiquetas de anuncio (X-AD-ID / ad_) con esta IP."
+          else
+            echo "✅ ¡ÉXITO TOTAL! Cero etiquetas X-AD-ID ni /ad_ en el stream con esta IP."
+          fi
+
+          echo "--> Ejecutando grabación de prueba usando el túnel VPN..."
+          chmod +x scripts/record_radio.sh
+          export STREAM_HTTP_PROXY="http://127.0.0.1:8080"
+          DUR="${{ inputs.duration_seconds || '180' }}"
+          ./scripts/record_radio.sh "MODA EL JUERGON DE MODA" "https://mdstrm.com/audio/6839e1c82cc4c480fcd318dd/live.m3u8?dnt=true" "https://raw.githubusercontent.com/jordantfarfan-cmd/radios-imagenes/main/MODA%20EL%20JUERGON%20DE%20MODA.png" "$DUR" "Grabaciones_Radio/Pruebas"
+
+      - name: "Subir muestra MP4 como Artefacto (1 día)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "Muestra_VPN_3min_MODA"
+          path: temp_*/*.mp4
+          retention-days: 1
+          if-no-files-found: ignore
