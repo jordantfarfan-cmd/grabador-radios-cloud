@@ -54,7 +54,7 @@ jobs:
           lines = []
           for line in conf.splitlines():
               s = line.strip()
-              if not s or s.startswith("#") or s.startswith("MTU"):
+              if not s or s.startswith("#") or s.startswith("MTU") or s.startswith("PersistentKeepalive"):
                   continue
               if s.startswith("Address"):
                   parts = [p.strip() for p in s.split("=", 1)[1].split(",") if ":" not in p]
