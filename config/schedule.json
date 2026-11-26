@@ -76,7 +76,8 @@
       "days": [1, 2, 3, 4],
       "start": "21:00",
       "end": "22:00",
-      "window": "night"
+      "window": "night",
+      "enabled": false
     },
     {
       "slug": "LA_ZONA_WEEKEND_CLASICOS",

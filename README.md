@@ -63,7 +63,7 @@ Definida en [config/schedule.json](config/schedule.json) (sincronizada con `main
 | **PANAMERICANA PANAMIX** | Panamericana | Lun–Vie | `12:00 PM – 01:00 PM` |
 | **LA ZONA CLASICOS DEL REGGAETON** | La Zona | Vie | `03:00 PM – 04:00 PM` |
 | **VIVA FM FIESTA PRIVADA** | Viva FM | Vie–Sáb | `07:00 PM – 12:00 AM` |
-| **ONDA CERO LA HORA REMIX** | Onda Cero | Lun–Jue | `09:00 PM – 10:00 PM` |
+| **ONDA CERO LA HORA REMIX** *(Suspendido)* | Onda Cero | Lun–Jue | `09:00 PM – 10:00 PM` |
 | **LA ZONA ZONA WEEKEND CLASICOS** | La Zona | Sáb–Dom | `06:00 PM – 12:00 AM` |
 | **STUDIO MODO LATIN** | Studio 92 | Sáb | `07:00 PM – 08:00 PM` |
 | **PLANETA WEEKEND** | Planeta | Vie | `08:00 PM – 02:00 AM` |

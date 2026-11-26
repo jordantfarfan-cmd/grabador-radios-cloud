@@ -206,6 +206,8 @@ def main():
 
     tasks = []
     for show in cfg["shows"]:
+        if not show.get("enabled", True):
+            continue
         if js_day not in show["days"]:
             continue
 

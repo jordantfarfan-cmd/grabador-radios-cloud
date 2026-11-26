@@ -11,8 +11,8 @@ on:
     - cron: '30 23 * * 5,6'
     # 4) Sáb-Dom Noche (desde 6:00 PM Lima) -> 22:25 UTC (arranca 5:25 PM Lima)
     - cron: '25 22 * * 6,0'
-    # 5) Lun-Vie Noche (desde 8:00 PM Vie / 9:00 PM L-J Lima) -> 00:25 UTC Mar-Sáb (arranca 7:25 PM Lima)
-    - cron: '25 0 * * 2-6'
+    # 5) Viernes Noche (desde 8:00 PM Lima) -> 00:25 UTC Sábado (arranca 7:25 PM Lima; L-J suspendido)
+    - cron: '25 0 * * 6'
 
   workflow_dispatch:
     inputs:
@@ -193,7 +193,7 @@ jobs:
   # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Con VPN Failover Activo
   # =========================================================================
   night_block_1:
-    if: github.event.schedule == '25 22 * * 6,0' || github.event.schedule == '25 0 * * 2-6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
+    if: github.event.schedule == '25 22 * * 6,0' || github.event.schedule == '25 0 * * 6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
