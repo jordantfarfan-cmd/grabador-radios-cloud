@@ -96,26 +96,20 @@ def main():
         print(f"ERROR: El archivo no existe: {args.file}", file=sys.stderr)
         sys.exit(1)
 
-    t1 = os.environ.get("YT_TOKEN_1", "").strip()
-    t2 = os.environ.get("YT_TOKEN_2", "").strip()
+    # Descubrir dinámicamente YT_TOKEN_1 .. YT_TOKEN_10 configurados en Secrets
+    tokens = []
+    for i in range(1, 11):
+        val = os.environ.get(f"YT_TOKEN_{i}", "").strip()
+        if val:
+            tokens.append((f"Proyecto {i}", val))
 
-    if not t1 and not t2:
-        print("ERROR: No hay credenciales YT_TOKEN_1 ni YT_TOKEN_2 configuradas.", file=sys.stderr)
+    if not tokens:
+        print("ERROR: No hay credenciales YT_TOKEN_1..N configuradas.", file=sys.stderr)
         sys.exit(1)
 
-    # Selección dinámica:
-    # - Si hay Proyecto 2 y el índice del día es >= 6 (típico Vie/Sáb), usar Proyecto 2 primero para equilibrar.
-    # - En caso contrario (L-J, Dom y los primeros 5 de Vie/Sáb), usar Proyecto 1.
-    candidates = []
-    if args.slot_index >= 6 and t2:
-        candidates = [("Proyecto 2 (Overflow Vie/Sáb)", t2), ("Proyecto 1 (Principal)", t1)]
-    else:
-        candidates = [("Proyecto 1 (Principal)", t1)]
-        if t2:
-            candidates.append(("Proyecto 2 (Backup)", t2))
-
-    # Filtrar vacíos
-    candidates = [(name, tok) for name, tok in candidates if tok]
+    # Distribuir carga en bloques de ~5 subidas por proyecto y rotar por todos si se agota la cuota
+    start_idx = ((max(1, args.slot_index) - 1) // 5) % len(tokens)
+    candidates = tokens[start_idx:] + tokens[:start_idx]
 
     for idx, (proj_name, token_str) in enumerate(candidates):
         try:
@@ -124,7 +118,10 @@ def main():
             return
         except HttpError as e:
             err_text = str(e)
-            is_quota = (e.resp.status == 403 and ("quotaExceeded" in err_text or "uploadLimitExceeded" in err_text))
+            is_quota = (
+                e.resp.status in (403, 429)
+                and any(k in err_text for k in ("quotaExceeded", "uploadLimitExceeded", "dailyLimitExceeded", "rateLimitExceeded"))
+            )
             if is_quota and idx + 1 < len(candidates):
                 print(f"--> [Aviso] Cuota diaria agotada en {proj_name}. Cambiando automáticamente al siguiente proyecto...")
                 time.sleep(2)

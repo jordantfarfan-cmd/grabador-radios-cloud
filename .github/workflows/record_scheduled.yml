@@ -1,4 +1,4 @@
-name: "Grabación Automática de Radios (Plan B)"
+name: "Grabación Automática de Radios (Híbrido: Auto-Subida + Plan B)"
 
 on:
   schedule:
@@ -41,15 +41,16 @@ jobs:
   daytime_12:
     if: github.event.schedule == '30 16 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_12')
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar ffmpeg y wireproxy
+      - name: Instalar ffmpeg, wireproxy y librerías YouTube
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar daytime_12 vía ProtonVPN y generar preview
@@ -57,7 +58,7 @@ jobs:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
         run: |
           python3 -c '
-          import os, re
+          import os
           raw = os.environ["PROTON_WG_CONF"].replace("\r\n", "\n")
           lines = []
           for line in raw.splitlines():
@@ -70,8 +71,7 @@ jobs:
               lines.append(line)
               if s == "[Interface]": lines.append("MTU = 1320")
               elif s == "[Peer]": lines.append("PersistentKeepalive = 25")
-          conf = "\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n"
-          open("wireproxy.conf", "w").write(conf)
+          open("wireproxy.conf", "w").write("\n".join(lines) + "\n\n[http]\nBindAddress = 127.0.0.1:8080\n")
           '
           wireproxy -c wireproxy.conf > wireproxy.log 2>&1 &
           WP_PID=$!
@@ -88,7 +88,7 @@ jobs:
           path: previews/
           retention-days: 3
           if-no-files-found: ignore
-      - name: Subir Audio Panamericana Día
+      - name: Subir Audio Panamericana Día (Respaldo 3 días)
         if: always() && env.LOGICAL_DATE != ''
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +96,14 @@ jobs:
           path: final_audios/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
+      - name: Auto-Subir crudo en Privado a YouTube
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py
 
   # =========================================================================
   # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN ProtonVPN
@@ -103,15 +111,16 @@ jobs:
   daytime_15:
     if: github.event.schedule == '30 19 * * 5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_15')
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar ffmpeg y wireproxy
+      - name: Instalar ffmpeg, wireproxy y librerías YouTube
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar daytime_15 vía ProtonVPN y generar preview
@@ -149,7 +158,7 @@ jobs:
           path: previews/
           retention-days: 3
           if-no-files-found: ignore
-      - name: Subir Audio La Zona Clásicos 3PM
+      - name: Subir Audio La Zona Clásicos 3PM (Respaldo 3 días)
         if: always() && env.LOGICAL_DATE != ''
         uses: actions/upload-artifact@v4
         with:
@@ -157,6 +166,14 @@ jobs:
           path: final_audios/LA_ZONA_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
+      - name: Auto-Subir crudo en Privado a YouTube
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py
 
   # =========================================================================
   # VENTANA VIVA FM NOCHE (Vie-Sáb 7 PM - 12 AM) - Directo sin VPN
@@ -164,14 +181,16 @@ jobs:
   viva_night:
     if: github.event.schedule == '30 23 * * 5,6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'viva_night')
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Instalar ffmpeg y librerías YouTube
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
       - name: Grabar Viva FM directo y generar preview
         run: |
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
@@ -185,7 +204,7 @@ jobs:
           path: previews/
           retention-days: 3
           if-no-files-found: ignore
-      - name: Subir Audio Viva FM Fiesta Privada
+      - name: Subir Audio Viva FM Fiesta Privada (Respaldo 3 días)
         if: always() && env.LOGICAL_DATE != ''
         uses: actions/upload-artifact@v4
         with:
@@ -193,6 +212,14 @@ jobs:
           path: final_audios/VIVA_FM_FIESTA_PRIVADA__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
+      - name: Auto-Subir crudo en Privado a YouTube
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py
 
   # =========================================================================
   # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Única conexión ProtonVPN activa
@@ -251,7 +278,7 @@ jobs:
   # =========================================================================
   night_block_2:
     needs: night_block_1
-    if: always() && needs.night_block_1.result != 'skipped'
+    if: always() && (needs.night_block_1.result == 'success' || needs.night_block_1.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
@@ -300,20 +327,22 @@ jobs:
           if-no-files-found: ignore
 
   # =========================================================================
-  # CONSOLIDACIÓN NOCHE: Une Parte 1 + Parte 2, genera Previews MP3 y guarda Audios Plan B
+  # CONSOLIDACIÓN NOCHE: Guarda Respaldos (3 días) + Auto-Sube crudos en Privado
   # =========================================================================
   night_finalize:
     needs: [night_block_1, night_block_2]
     if: always() && (needs.night_block_1.result == 'success' || needs.night_block_2.result == 'success')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Instalar ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Instalar ffmpeg y librerías YouTube
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
       - name: Descargar partes de Bloque 1
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -427,3 +456,12 @@ jobs:
           path: final_audios/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
+
+      - name: Auto-Subir crudos en Privado a YouTube (para revisión de copyright)
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py

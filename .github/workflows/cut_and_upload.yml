@@ -21,27 +21,32 @@ on:
           - PANAMERICANA PANAMIX
           - VIVA FM FIESTA PRIVADA
       start_time:
-        description: "2. Minuto exacto donde empieza el mix (ej. 07:35 o 12:15)"
+        description: "2. Minuto exacto donde empieza el mix (ej. 25:18)"
         required: true
         default: "00:00"
         type: string
       end_time:
-        description: "3. (Opcional) Minuto de corte final (ej. 05:55:00). Déjalo vacío para ir hasta el final"
+        description: "3. (Opcional) Minuto de corte final (ej. 07:55:00). Déjalo vacío para ir hasta el final"
+        required: false
+        default: ""
+        type: string
+      exclude_ranges:
+        description: "4. (Opcional) Tramos con copyright a quitar (ej. 3:04:01-3:06:06, 7:21:00-7:23:41)"
         required: false
         default: ""
         type: string
       date:
-        description: "4. (Opcional) Fecha YYYY-MM-DD (déjalo vacío para usar la grabación más reciente)"
+        description: "5. (Opcional) Fecha YYYY-MM-DD (déjalo vacío para usar la grabación más reciente)"
         required: false
         default: ""
         type: string
       title:
-        description: "5. (Opcional) Título personalizado para YouTube"
+        description: "6. (Opcional) Título personalizado para YouTube"
         required: false
         default: ""
         type: string
       privacy:
-        description: "6. Visibilidad en YouTube"
+        description: "7. Visibilidad en YouTube"
         required: true
         type: choice
         default: private
@@ -49,6 +54,11 @@ on:
           - private
           - unlisted
           - public
+      download_only:
+        description: "8. Solo generar MP4 descargable (no subir a YouTube)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -67,11 +77,13 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
-      - name: Cortar (Stream Copy), empaquetar 1080p y subir a YouTube
+      - name: Cortar (Stream Copy + Copyright), empaquetar 1080p y subir a YouTube
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
           YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: |
           ARGS=(
             --show "${{ github.event.inputs.show }}"
@@ -81,10 +93,24 @@ jobs:
           if [ -n "${{ github.event.inputs.end_time }}" ]; then
             ARGS+=(--end "${{ github.event.inputs.end_time }}")
           fi
+          if [ -n "${{ github.event.inputs.exclude_ranges }}" ]; then
+            ARGS+=(--exclude "${{ github.event.inputs.exclude_ranges }}")
+          fi
           if [ -n "${{ github.event.inputs.date }}" ]; then
             ARGS+=(--date "${{ github.event.inputs.date }}")
           fi
           if [ -n "${{ github.event.inputs.title }}" ]; then
             ARGS+=(--title "${{ github.event.inputs.title }}")
           fi
+          if [ "${{ github.event.inputs.download_only }}" = "true" ]; then
+            ARGS+=(--download-only)
+          fi
           python3 scripts/cut_and_upload.py "${ARGS[@]}"
+      - name: Subir MP4 cortado para descargar (si se marcó Solo generar MP4)
+        if: github.event.inputs.download_only == 'true' && env.MP4_ARTIFACT_NAME != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MP4_ARTIFACT_NAME }}
+          path: output_mp4/
+          retention-days: 3
+          if-no-files-found: ignore
