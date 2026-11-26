@@ -10,9 +10,12 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SHOW_NAME="${1:-"RADIO_SHOW"}"
 COVER_URL="${2:-""}"
 GDRIVE_FOLDER="${3:-"Grabaciones_Radio"}"
+SLOT_INDEX="${4:-${YT_SLOT_INDEX:-1}}"
 
 echo "================================================================="
 echo " UNIENDO BLOQUES DE SHOW EXTENDIDO: $SHOW_NAME"
@@ -68,7 +71,20 @@ ffmpeg -y \
 
 echo "--> MP4 generado: $OUTPUT_MP4 (Tamaño: $(du -h "$OUTPUT_MP4" | cut -f1))"
 
-# 4. Subida a Google Drive
+# 4. Subida directa a YouTube (si YT_TOKEN_1 o YT_TOKEN_2 están configurados)
+if [ -n "${YT_TOKEN_1:-}" ] || [ -n "${YT_TOKEN_2:-}" ]; then
+    TITULO_FECHA=$(TZ="America/Lima" date +"%d %b %Y" | tr '[:lower:]' '[:upper:]')
+    YT_TITLE="${SHOW_NAME} - ${TITULO_FECHA}"
+    echo "--> Subiendo video unificado directo a YouTube (Privado) [Slot #${SLOT_INDEX}]: $YT_TITLE"
+    python3 "$SCRIPT_DIR/upload_youtube.py" \
+        --file "$OUTPUT_MP4" \
+        --title "$YT_TITLE" \
+        --description "Grabación automática continua de ${SHOW_NAME} (${TITULO_FECHA})." \
+        --privacy "private" \
+        --slot-index "$SLOT_INDEX"
+fi
+
+# 5. Subida opcional a Google Drive si rclone está configurado
 if command -v rclone &> /dev/null && [ -f "$HOME/.config/rclone/rclone.conf" ]; then
     echo "--> Subiendo archivo unificado a Google Drive..."
     rclone move "$OUTPUT_MP4" "gdrive:$GDRIVE_FOLDER" --progress

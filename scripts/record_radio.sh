@@ -5,25 +5,30 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 ARG1="$1"
 ARG2="$2"
 ARG3="$3"
 ARG4="$4"
 ARG5="$5"
+ARG6="$6"
 
 SHOW_NAME="${ARG1:-"RADIO_TEST"}"
 STREAM_URL="${ARG2:-""}"
 
 # Detección inteligente de argumentos (por si un entorno omite un string vacío)
 if [[ "$ARG3" =~ ^[0-9]+$ ]]; then
-    # ARG3 es un número: fue invocado como: script name url duration folder
+    # ARG3 es un número: fue invocado como: script name url duration folder [slot_index]
     COVER_URL=""
     DURATION="$ARG3"
     GDRIVE_FOLDER="${ARG4:-"Grabaciones_Radio"}"
+    SLOT_INDEX="${ARG5:-${YT_SLOT_INDEX:-1}}"
 else
     COVER_URL="${ARG3:-""}"
     DURATION="${ARG4:-30}"
     GDRIVE_FOLDER="${ARG5:-"Grabaciones_Radio"}"
+    SLOT_INDEX="${ARG6:-${YT_SLOT_INDEX:-1}}"
 fi
 
 # Sanitizar duración (solo números enteros)
@@ -143,15 +148,35 @@ pack_and_upload() {
 
     echo "--> MP4 generado con éxito: $OUTPUT_MP4 (Tamaño: $(du -h "$OUTPUT_MP4" | cut -f1))"
 
-    # 5. Subida automática a Google Drive si rclone está configurado
+    # 5. Subida directa a YouTube (si YT_TOKEN_1 o YT_TOKEN_2 están configurados)
+    if [ -n "${YT_TOKEN_1:-}" ] || [ -n "${YT_TOKEN_2:-}" ]; then
+        TITULO_FECHA=$(TZ="America/Lima" date +"%d %b %Y" | tr '[:lower:]' '[:upper:]')
+        YT_TITLE="${SHOW_NAME} - ${TITULO_FECHA}"
+        echo "--> Subiendo directo a YouTube (Privado) [Slot #${SLOT_INDEX}]: $YT_TITLE"
+        python3 "$SCRIPT_DIR/upload_youtube.py" \
+            --file "$OUTPUT_MP4" \
+            --title "$YT_TITLE" \
+            --description "Grabación automática de ${SHOW_NAME} (${TITULO_FECHA})." \
+            --privacy "private" \
+            --slot-index "$SLOT_INDEX"
+    fi
+
+    # 6. Respaldo opcional en Google Drive solo si rclone está configurado
     if command -v rclone &> /dev/null && [ -f "$HOME/.config/rclone/rclone.conf" ]; then
         echo "--> Subiendo a Google Drive ($GDRIVE_FOLDER)..."
         rclone move "$OUTPUT_MP4" "gdrive:$GDRIVE_FOLDER" --progress
         echo "--> ¡Subida a Google Drive completada!"
-    else
-        echo "--> [Aviso] rclone no está configurado. El archivo MP4 se conserva localmente."
     fi
 }
+
+if [ "${RECORD_MODE:-full}" = "capture_only" ]; then
+    echo "--> Modo capture_only: conservando audio_completo.ts para unión posterior."
+    rm -f parte_*.ts lista.txt
+    echo "================================================================="
+    echo " CAPTURA PARCIAL FINALIZADA: $SHOW_NAME"
+    echo "================================================================="
+    exit 0
+fi
 
 if command -v flock &> /dev/null; then
     echo "--> Esperando turno en cola (flock) para empaquetar sin saturar RAM..."
