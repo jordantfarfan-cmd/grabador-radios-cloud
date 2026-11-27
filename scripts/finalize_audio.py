@@ -2,7 +2,7 @@
 """
 Consolidador de Audios y Generador de Previews Ligeros (Plan B)
 - Une parte 1 + parte 2 (.ts) de cada programa en un único audio.ts continuo (sin recomprimir).
-- Genera un MP3 ligero de la primera hora (48 kbps mono, ~21 MB) por programa para que el usuario
+- Genera un MP3 ultra ligero de la primera hora (24 kbps mono 22.05 kHz, ~10.5 MB) por programa para que el usuario
   lo escuche como guía en la web y elija el minuto exacto de inicio y el título.
 - Prepara las carpetas listas para subir como Artifacts de GitHub.
 """
@@ -87,7 +87,7 @@ def main():
         size_mb = os.path.getsize(final_ts) / (1024 * 1024)
         print(f"✅ Audio consolidado: {key} ({size_mb:.1f} MB)")
 
-        # Generar Preview MP3 guía ligero (48 kbps mono, primera hora ~21 MB)
+        # Generar Preview MP3 guía ultra ligero (24 kbps mono 22.05 kHz, primera hora ~10.5 MB)
         preview_dir = os.path.join("previews", key)
         os.makedirs(preview_dir, exist_ok=True)
         preview_mp3 = os.path.join(preview_dir, f"{slug}__{date_str}__PREVIEW.mp3")
@@ -96,7 +96,7 @@ def main():
                 "ffmpeg", "-y", "-loglevel", "warning",
                 "-i", final_ts,
                 "-t", str(PREVIEW_SECONDS),
-                "-c:a", "libmp3lame", "-b:a", "48k", "-ac", "1",
+                "-c:a", "libmp3lame", "-b:a", "24k", "-ac", "1", "-ar", "22050",
                 preview_mp3,
             ],
             check=False,
