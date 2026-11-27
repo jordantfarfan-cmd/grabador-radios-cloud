@@ -1,4 +1,5 @@
 name: "✂️ Plan B: Cortar y Subir a YouTube"
+run-name: "✂️ Plan B: ${{ github.event.inputs.show }} (${{ github.event.inputs.date || 'reciente' }})"
 
 on:
   workflow_dispatch:
