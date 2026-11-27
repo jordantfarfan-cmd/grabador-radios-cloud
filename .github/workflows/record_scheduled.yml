@@ -2,22 +2,20 @@ name: "Grabación Automática de Radios (Híbrido: Auto-Subida + Plan B)"
 
 on:
   schedule:
+    # Respaldo automático en minutos sin congestión (Cloudflare Cron dispara 10-13 min antes)
     # Lima = UTC - 5 horas
-    # 1) Lun-Vie 12:00 PM Lima -> 16:30 UTC (arranca 11:30 AM Lima para cubrir retrasos de GitHub)
-    - cron: '30 16 * * 1-5'
-    # 2) Viernes 3:00 PM Lima -> 19:30 UTC (arranca 2:30 PM Lima)
-    - cron: '30 19 * * 5'
-    # 3) Vie-Sáb Viva FM 7:00 PM Lima -> 23:30 UTC (sin VPN, independiente)
-    - cron: '30 23 * * 5,6'
-    # 4) Sáb-Dom Noche (desde 6:00 PM Lima) -> 22:25 UTC (arranca 5:25 PM Lima)
-    - cron: '25 22 * * 6,0'
-    # 5) Viernes Noche (desde 8:00 PM Lima) -> 00:25 UTC Sábado (arranca 7:25 PM Lima; L-J suspendido)
-    - cron: '25 0 * * 6'
-    # 6) Sábado Noche Temprano (Modo Latin 7-8 PM Lima) -> 23:35 UTC Sábado (Cuenta VPN B, independiente)
-    - cron: '35 23 * * 6'
-    # 7) Cierre Medianoche (Vie 7:35 PM Lima -> 00:35 UTC Sáb, Sáb 9:35 PM Lima -> 02:35 UTC Dom; Cuenta VPN B)
-    - cron: '35 0 * * 6'
-    - cron: '35 2 * * 0'
+    # 1) Lun-Vie 12:00 PM Lima -> 16:37 UTC (11:37 AM Lima)
+    - cron: '37 16 * * 1-5'
+    # 2) Viernes 3:00 PM Lima -> 19:37 UTC (2:37 PM Lima)
+    - cron: '37 19 * * 5'
+    # 3) Vie-Sáb Viva FM + Sáb Modo Latin -> 23:38 UTC (6:38 PM Lima)
+    - cron: '38 23 * * 5,6'
+    # 4) Sáb-Dom Noche (desde 6:00 PM Lima) -> 22:33 UTC (5:33 PM Lima)
+    - cron: '33 22 * * 6,0'
+    # 5) Viernes Noche + Cierre Medianoche -> 00:37 UTC Sábado (7:37 PM Lima Vie)
+    - cron: '37 0 * * 6'
+    # 6) Sábado Cierre Medianoche (Panamix Noche) -> 02:42 UTC Domingo (9:42 PM Lima Sáb)
+    - cron: '42 2 * * 0'
 
   workflow_dispatch:
     inputs:
@@ -40,13 +38,14 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   # =========================================================================
   # VENTANA DÍA 12 PM (Lun-Vie: Panamericana Panamix) - Con VPN Failover
   # =========================================================================
   daytime_12:
-    if: github.event.schedule == '30 16 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_12')
+    if: github.event.schedule == '37 16 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_12')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -54,13 +53,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar daytime_12 con VPN Failover y generar preview
+        if: env.ALREADY_RUNNING != 'true'
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
           PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
@@ -100,7 +105,7 @@ jobs:
   # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN Failover
   # =========================================================================
   daytime_15:
-    if: github.event.schedule == '30 19 * * 5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_15')
+    if: github.event.schedule == '37 19 * * 5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'daytime_15')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -108,13 +113,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar daytime_15 con VPN Failover y generar preview
+        if: env.ALREADY_RUNNING != 'true'
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
           PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
@@ -154,7 +165,7 @@ jobs:
   # VENTANA VIVA FM NOCHE (Vie-Sáb 7 PM - 12 AM) - Directo sin VPN
   # =========================================================================
   viva_night:
-    if: github.event.schedule == '30 23 * * 5,6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'viva_night')
+    if: github.event.schedule == '38 23 * * 5,6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'viva_night')
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
@@ -162,11 +173,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg y librerías YouTube
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
       - name: Grabar Viva FM directo y generar preview
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
           python3 scripts/capture_block.py --window viva_night --override-day "$OVERRIDE"
@@ -200,7 +217,7 @@ jobs:
   # SÁBADO TEMPRANO (Modo Latin 7-8 PM) - Cuenta VPN B independiente (sube ~8:05 PM)
   # =========================================================================
   night_early_20:
-    if: github.event.schedule == '35 23 * * 6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_early_20')
+    if: github.event.schedule == '38 23 * * 5,6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_early_20')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -208,13 +225,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar Modo Latin con Cuenta VPN B y generar preview
+        if: env.ALREADY_RUNNING != 'true'
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_B_WG_CONF }}
           PROTON_WG_CONF_2: ${{ secrets.PROTON_B_WG_CONF_2 }}
@@ -251,7 +274,7 @@ jobs:
   # NOCHE CIERRE MEDIANOCHE (Vie: Sessions+Oxígeno | Sáb: Panamix) - Cuenta VPN B
   # =========================================================================
   night_mid_24:
-    if: github.event.schedule == '35 0 * * 6' || github.event.schedule == '35 2 * * 0' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_mid_24')
+    if: github.event.schedule == '37 0 * * 6' || github.event.schedule == '42 2 * * 0' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_mid_24')
     runs-on: ubuntu-latest
     timeout-minutes: 315
     steps:
@@ -259,13 +282,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q google-auth google-auth-oauthlib google-api-python-client
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Grabar cierre Medianoche con Cuenta VPN B y generar preview
+        if: env.ALREADY_RUNNING != 'true'
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_B_WG_CONF }}
           PROTON_WG_CONF_2: ${{ secrets.PROTON_B_WG_CONF_2 }}
@@ -334,20 +363,29 @@ jobs:
   # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Con VPN Failover Activo
   # =========================================================================
   night_block_1:
-    if: github.event.schedule == '25 22 * * 6,0' || github.event.schedule == '25 0 * * 6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
+    if: github.event.schedule == '33 22 * * 6,0' || github.event.schedule == '37 0 * * 6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night')
     runs-on: ubuntu-latest
     timeout-minutes: 355
+    outputs:
+      skip_duplicate: ${{ steps.dup.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Evitar duplicado si ya corre otro runner
+        id: dup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_duplicate_job.py
       - name: Instalar ffmpeg y wireproxy
+        if: env.ALREADY_RUNNING != 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
           tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
       - name: Capturar Bloque 1 Noche con VPN Failover
+        if: env.ALREADY_RUNNING != 'true'
         env:
           PROTON_WG_CONF: ${{ secrets.PROTON_WG_CONF }}
           PROTON_WG_CONF_2: ${{ secrets.PROTON_WG_CONF_2 }}
@@ -358,7 +396,7 @@ jobs:
           OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
           python3 scripts/capture_block.py --window night_block_1 --override-day "$OVERRIDE"
       - name: Subir partes temporales Bloque 1
-        if: always()
+        if: always() && env.ALREADY_RUNNING != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: tmp-night-part1-${{ github.run_id }}
@@ -371,7 +409,7 @@ jobs:
   # =========================================================================
   night_block_2:
     needs: night_block_1
-    if: always() && (needs.night_block_1.result == 'success' || needs.night_block_1.result == 'failure')
+    if: always() && needs.night_block_1.outputs.skip_duplicate != 'true' && (needs.night_block_1.result == 'success' || needs.night_block_1.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
@@ -408,7 +446,7 @@ jobs:
   # =========================================================================
   night_finalize:
     needs: [night_block_1, night_block_2]
-    if: always() && (needs.night_block_1.result == 'success' || needs.night_block_2.result == 'success')
+    if: always() && needs.night_block_1.outputs.skip_duplicate != 'true' && (needs.night_block_1.result == 'success' || needs.night_block_2.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
