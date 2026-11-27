@@ -70,6 +70,11 @@ on:
         required: false
         default: false
         type: boolean
+      delete_raw_id:
+        description: "11. (Opcional) Video ID del [CRUDO] en YouTube a eliminar tras subir la versión final"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   actions: read
@@ -95,6 +100,7 @@ jobs:
           YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+          YT_PLAYLIST_TOKEN: ${{ secrets.YT_PLAYLIST_TOKEN }}
           INPUT_TITLE: ${{ github.event.inputs.title }}
           INPUT_DESCRIPTION: ${{ github.event.inputs.description }}
           INPUT_PLAYLIST: ${{ github.event.inputs.playlist }}
@@ -124,6 +130,8 @@ jobs:
           fi
           if [ "${{ github.event.inputs.download_only }}" = "true" ]; then
             ARGS+=(--download-only)
+          elif [ -n "${{ github.event.inputs.delete_raw_id }}" ]; then
+            ARGS+=(--delete-raw-id "${{ github.event.inputs.delete_raw_id }}")
           fi
           python3 scripts/cut_and_upload.py "${ARGS[@]}"
       - name: Subir MP4 cortado para descargar (si se marcó Solo generar MP4)

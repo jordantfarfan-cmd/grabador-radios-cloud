@@ -153,6 +153,7 @@ def main():
     parser.add_argument("--playlist", default="", help="Nombre de playlist (vacío = automática, NONE = ninguna)")
     parser.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     parser.add_argument("--download-only", action="store_true", help="Solo generar MP4 descargable (sin subir a YouTube)")
+    parser.add_argument("--delete-raw-id", default="", help="Video ID del [CRUDO] en YouTube a eliminar tras confirmar la subida final")
     args = parser.parse_args()
 
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -258,6 +259,8 @@ def main():
     ]
     if yt_playlist:
         cmd += ["--playlist", yt_playlist]
+    if args.delete_raw_id.strip():
+        cmd += ["--delete-raw-id", args.delete_raw_id.strip()]
     subprocess.run(cmd, check=True)
 
 

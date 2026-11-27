@@ -20,6 +20,7 @@ from googleapiclient.http import MediaFileUpload
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
 ]
 
 
@@ -99,12 +100,8 @@ def find_playlist_id(youtube, target_title: str) -> str | None:
     return None
 
 
-def add_video_to_playlist(video_id: str, playlist_title: str, tokens: list[tuple[str, str]]):
-    clean_pl = (playlist_title or "").strip()
-    if not clean_pl or clean_pl.upper() == "NONE":
-        return
-
-    # Buscar un token con permiso youtube.force-ssl o youtube completo (ej. YT_PLAYLIST_TOKEN o YT_TOKEN_1)
+def get_tokens_with_full_scope(tokens: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Devuelve credenciales ordenadas que cuentan con scope youtube o youtube.force-ssl."""
     ordered = []
     extra = os.environ.get("YT_PLAYLIST_TOKEN", "").strip()
     if extra:
@@ -119,6 +116,15 @@ def add_video_to_playlist(video_id: str, playlist_title: str, tokens: list[tuple
             scopes = []
         if any(s.endswith("/auth/youtube.force-ssl") or s.endswith("/auth/youtube") for s in scopes):
             eligible.append((name, tok_str))
+    return eligible
+
+
+def add_video_to_playlist(video_id: str, playlist_title: str, tokens: list[tuple[str, str]]):
+    clean_pl = (playlist_title or "").strip()
+    if not clean_pl or clean_pl.upper() == "NONE":
+        return
+
+    eligible = get_tokens_with_full_scope(tokens)
 
     if not eligible:
         print(f"::warning::No se encontró ningún YT_TOKEN con permiso 'youtube.force-ssl' para añadir a la playlist '{clean_pl}'. El video sí se subió bien.")
@@ -146,6 +152,50 @@ def add_video_to_playlist(video_id: str, playlist_title: str, tokens: list[tuple
             print(f"--> [Aviso] Falló añadir a playlist con {name}: {e}")
 
 
+def delete_raw_video(raw_video_id: str, uploaded_video_id: str, tokens: list[tuple[str, str]]):
+    """Elimina un video [CRUDO] privado de YouTube tras validar candados de seguridad, sin fallar el workflow."""
+    raw_id = (raw_video_id or "").strip()
+    if not raw_id or not uploaded_video_id:
+        return
+
+    if raw_id == uploaded_video_id:
+        print(f"::warning::Candado de seguridad: raw_id ({raw_id}) coincide con el video recién subido; se omite eliminación.")
+        return
+
+    eligible = get_tokens_with_full_scope(tokens)
+    if not eligible:
+        print(f"::warning::No se encontró ningún YT_TOKEN con permiso 'youtube' o 'youtube.force-ssl' para eliminar el [CRUDO] {raw_id}. El video final sí se subió bien.")
+        return
+
+    for name, tok_str in eligible:
+        try:
+            yt = build_youtube_service(tok_str)
+            res = yt.videos().list(part="snippet,status", id=raw_id).execute()
+            items = res.get("items") or []
+            if not items:
+                print(f"::warning::El video [CRUDO] {raw_id} no se encontró en YouTube (posiblemente ya fue eliminado manualmente).")
+                return
+
+            item = items[0]
+            raw_title = ((item.get("snippet") or {}).get("title") or "").strip()
+            privacy = ((item.get("status") or {}).get("privacyStatus") or "").strip().lower()
+
+            if not raw_title.startswith("[CRUDO]") or privacy != "private":
+                print(
+                    f"::warning::Candado de seguridad activado: no se elimina {raw_id} "
+                    f"(title='{raw_title}', privacyStatus='{privacy}'; requiere '[CRUDO]' y 'private')."
+                )
+                return
+
+            yt.videos().delete(id=raw_id).execute()
+            print(f"--> 🗑️ Video [CRUDO] eliminado correctamente de YouTube: {raw_id} ('{raw_title}')")
+            return
+        except Exception as e:
+            print(f"::warning::No se pudo eliminar el [CRUDO] {raw_id} con {name}: {e}")
+
+    print(f"::warning::No se logró eliminar el [CRUDO] {raw_id} tras intentar con las credenciales elegibles; el video final sí quedó subido.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sube un MP4 a YouTube con balanceo dinámico de cuota.")
     parser.add_argument("--file", required=True, help="Ruta al archivo MP4")
@@ -155,6 +205,7 @@ def main():
     parser.add_argument("--playlist", default="", help="Nombre exacto de la playlist de YouTube (opcional)")
     parser.add_argument("--slot-index", type=int, default=1, help="Índice del video en el día (1..N)")
     parser.add_argument("--out-video-id", default="", help="Ruta opcional para guardar el Video ID subido")
+    parser.add_argument("--delete-raw-id", default="", help="Video ID del [CRUDO] privado a eliminar tras confirmar la subida final")
     args = parser.parse_args()
 
     if not os.path.isfile(args.file):
@@ -187,6 +238,8 @@ def main():
                     vf.write(f"{video_id}\n")
             if video_id and args.playlist.strip():
                 add_video_to_playlist(video_id, args.playlist, tokens)
+            if video_id and args.delete_raw_id.strip():
+                delete_raw_video(args.delete_raw_id.strip(), video_id, tokens)
             return
         except HttpError as e:
             err_text = str(e)
