@@ -105,6 +105,25 @@ def get_default_youtube_metadata(show_name: str, date_label: str) -> tuple[str, 
     return f"{show_name} - {date_label}", f"Grabación de {show_name} ({date_label})."
 
 
+SHOW_PLAYLISTS = {
+    "PANAMERICANA PANAMIX": "[PANAMERICANA] 🎼 PANAMIX 🎼",
+    "LA ZONA CLASICOS DEL REGGAETON": "[LA ZONA] 🔥 CLÁSICOS DEL REGGAETON 🔥",
+    "LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON": "[LA ZONA] 🔥 CLÁSICOS DEL REGGAETON 🔥",
+    "MODA EL JUERGON DE MODA": "[MODA] 💥 EL JUERGÓN DE MODA 💥",
+    "PLANETA PLANETA WEEKEND": "[PLANETA] 🪐 PLANETA WEEKEND 🪐",
+    "OXIGENO BAR OXIGENO": "[OXÍGENO] 🍸 BAR OXÍGENO 🍸",
+    "STUDIO SESSIONS": "[STUDIO 92] 🎧 SESSIONS 🎧",
+    "ONDA CERO LA TOCADA": "[ONDA CERO] 🏓 LA TOCADA 🏓",
+    "VIVA FM FIESTA PRIVADA": "[VIVA FM] 🎫 FIESTA PRIVADA 🎫",
+    "STUDIO MODO LATIN": "[STUDIO 92] 🧃 MODO LATIN 🧃",
+    "LA ZONA ZONA WEEKEND": "[LA ZONA] 🏖️ ZONA WEEKEND 🏖️",
+}
+
+
+def get_default_playlist(show_name: str) -> str:
+    return SHOW_PLAYLISTS.get(show_name, "")
+
+
 def probe_duration(file_path: str) -> float:
     probe = subprocess.run(
         [

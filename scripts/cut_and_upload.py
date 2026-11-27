@@ -23,6 +23,7 @@ from media_utils import (
     download_cover,
     format_date_es,
     format_timestamp,
+    get_default_playlist,
     get_default_youtube_metadata,
     mux_mp4,
     parse_timestamp,
@@ -149,6 +150,7 @@ def main():
     parser.add_argument("--date", default="", help="Fecha opcional YYYY-MM-DD (por defecto la más reciente)")
     parser.add_argument("--title", default="", help="Título personalizado opcional para YouTube")
     parser.add_argument("--description", default="", help="Descripción personalizada opcional para YouTube")
+    parser.add_argument("--playlist", default="", help="Nombre de playlist (vacío = automática, NONE = ninguna)")
     parser.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     parser.add_argument("--download-only", action="store_true", help="Solo generar MP4 descargable (sin subir a YouTube)")
     args = parser.parse_args()
@@ -243,18 +245,20 @@ def main():
     default_title, default_desc = get_default_youtube_metadata(args.show, date_label)
     yt_title = args.title.strip() if args.title.strip() else default_title
     yt_desc = args.description.strip() if args.description.strip() else default_desc
+    raw_pl = args.playlist.strip()
+    yt_playlist = "" if raw_pl.upper() == "NONE" else (raw_pl if raw_pl else get_default_playlist(args.show))
     print(f"--> Subiendo versión limpia a YouTube ({args.privacy}): {yt_title}")
-    subprocess.run(
-        [
-            sys.executable, os.path.join(SCRIPT_DIR, "upload_youtube.py"),
-            "--file", final_mp4,
-            "--title", yt_title,
-            "--description", yt_desc,
-            "--privacy", args.privacy,
-            "--slot-index", "1",
-        ],
-        check=True,
-    )
+    cmd = [
+        sys.executable, os.path.join(SCRIPT_DIR, "upload_youtube.py"),
+        "--file", final_mp4,
+        "--title", yt_title,
+        "--description", yt_desc,
+        "--privacy", args.privacy,
+        "--slot-index", "1",
+    ]
+    if yt_playlist:
+        cmd += ["--playlist", yt_playlist]
+    subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":

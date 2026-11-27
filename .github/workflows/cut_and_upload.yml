@@ -51,8 +51,13 @@ on:
         required: false
         default: ""
         type: string
+      playlist:
+        description: "8. (Opcional) Playlist (vacío=automática, NONE=ninguna)"
+        required: false
+        default: ""
+        type: string
       privacy:
-        description: "8. Visibilidad en YouTube"
+        description: "9. Visibilidad en YouTube"
         required: true
         type: choice
         default: private
@@ -61,7 +66,7 @@ on:
           - unlisted
           - public
       download_only:
-        description: "9. Solo generar MP4 descargable (no subir a YouTube)"
+        description: "10. Solo generar MP4 descargable (no subir a YouTube)"
         required: false
         default: false
         type: boolean
@@ -92,6 +97,7 @@ jobs:
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
           INPUT_TITLE: ${{ github.event.inputs.title }}
           INPUT_DESCRIPTION: ${{ github.event.inputs.description }}
+          INPUT_PLAYLIST: ${{ github.event.inputs.playlist }}
         run: |
           ARGS=(
             --show "${{ github.event.inputs.show }}"
@@ -112,6 +118,9 @@ jobs:
           fi
           if [ -n "$INPUT_DESCRIPTION" ]; then
             ARGS+=(--description "$INPUT_DESCRIPTION")
+          fi
+          if [ -n "$INPUT_PLAYLIST" ]; then
+            ARGS+=(--playlist "$INPUT_PLAYLIST")
           fi
           if [ "${{ github.event.inputs.download_only }}" = "true" ]; then
             ARGS+=(--download-only)

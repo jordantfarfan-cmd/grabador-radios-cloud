@@ -83,12 +83,76 @@ def upload_with_credentials(token_json_str: str, file_path: str, title: str, des
     return video_id
 
 
+def find_playlist_id(youtube, target_title: str) -> str | None:
+    target_norm = target_title.strip()
+    page_token = None
+    while True:
+        req = youtube.playlists().list(part="snippet", mine=True, maxResults=50, pageToken=page_token)
+        res = req.execute()
+        for item in res.get("items", []):
+            title = item.get("snippet", {}).get("title", "").strip()
+            if title == target_norm:
+                return item["id"]
+        page_token = res.get("nextPageToken")
+        if not page_token:
+            break
+    return None
+
+
+def add_video_to_playlist(video_id: str, playlist_title: str, tokens: list[tuple[str, str]]):
+    clean_pl = (playlist_title or "").strip()
+    if not clean_pl or clean_pl.upper() == "NONE":
+        return
+
+    # Buscar un token con permiso youtube.force-ssl o youtube completo (ej. YT_PLAYLIST_TOKEN o YT_TOKEN_1)
+    ordered = []
+    extra = os.environ.get("YT_PLAYLIST_TOKEN", "").strip()
+    if extra:
+        ordered.append(("YT_PLAYLIST_TOKEN", extra))
+    ordered.extend(tokens)
+
+    eligible = []
+    for name, tok_str in ordered:
+        try:
+            scopes = json.loads(tok_str).get("scopes") or []
+        except Exception:
+            scopes = []
+        if any(s.endswith("/auth/youtube.force-ssl") or s.endswith("/auth/youtube") for s in scopes):
+            eligible.append((name, tok_str))
+
+    if not eligible:
+        print(f"::warning::No se encontró ningún YT_TOKEN con permiso 'youtube.force-ssl' para añadir a la playlist '{clean_pl}'. El video sí se subió bien.")
+        return
+
+    for name, tok_str in eligible:
+        try:
+            yt = build_youtube_service(tok_str)
+            pl_id = find_playlist_id(yt, clean_pl)
+            if not pl_id:
+                print(f"::warning::No se encontró la playlist '{clean_pl}' en el canal con {name}.")
+                return
+            yt.playlistItems().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "playlistId": pl_id,
+                        "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                    }
+                },
+            ).execute()
+            print(f"--> ✅ Video añadido automáticamente a la playlist: {clean_pl}")
+            return
+        except Exception as e:
+            print(f"--> [Aviso] Falló añadir a playlist con {name}: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sube un MP4 a YouTube con balanceo dinámico de cuota.")
     parser.add_argument("--file", required=True, help="Ruta al archivo MP4")
     parser.add_argument("--title", required=True, help="Título del video en YouTube")
     parser.add_argument("--description", default="Grabación automática de radio en vivo.", help="Descripción")
     parser.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"], help="Estado inicial")
+    parser.add_argument("--playlist", default="", help="Nombre exacto de la playlist de YouTube (opcional)")
     parser.add_argument("--slot-index", type=int, default=1, help="Índice del video en el día (1..N)")
     args = parser.parse_args()
 
@@ -114,7 +178,9 @@ def main():
     for idx, (proj_name, token_str) in enumerate(candidates):
         try:
             print(f"--> Usando credenciales de: {proj_name} (slot #{args.slot_index})")
-            upload_with_credentials(token_str, args.file, args.title, args.description, args.privacy)
+            video_id = upload_with_credentials(token_str, args.file, args.title, args.description, args.privacy)
+            if video_id and args.playlist.strip():
+                add_video_to_playlist(video_id, args.playlist, tokens)
             return
         except HttpError as e:
             err_text = str(e)
