@@ -7,12 +7,12 @@
  *
  * Configuración en Cloudflare Dashboard (Workers & Pages -> b3tnvjwd-bridge -> Settings):
  * - Variables and Secrets -> Add -> Secret: Name = GITHUB_PAT, Value = tu GitHub PAT (permiso workflow/actions)
- * - Trigger Events -> Cron Triggers -> Add estos 5 horarios (UTC):
- *     1) 25 16 * * 1-5    (Lun-Vie 11:25 AM Lima -> daytime_12)
- *     2) 25 19 * * 5      (Viernes 02:25 PM Lima -> daytime_15)
- *     3) 25 23 * * 5,6    (Vie-Sáb 06:25 PM Lima -> viva_night + Sáb night_early_20)
- *     4) 20 22 * * 6,0    (Sáb-Dom 05:20 PM Lima -> night)
- *     5) 25 0,2 * * 6,0   (Vie 07:25 PM Lima -> night + night_mid_24 | Sáb 09:25 PM Lima -> night_mid_24)
+ * - Trigger Events -> Cron Triggers -> Add estos 5 horarios (UTC, en Cloudflare usar letras de día):
+ *     1) 25 16 * * MON-FRI  (Lun-Vie 11:25 AM Lima -> daytime_12)
+ *     2) 25 19 * * FRI      (Viernes 02:25 PM Lima -> daytime_15)
+ *     3) 25 23 * * FRI,SAT  (Vie-Sáb 06:25 PM Lima -> viva_night + Sáb night_early_20)
+ *     4) 20 22 * * SAT,SUN  (Sáb-Dom 05:20 PM Lima -> night)
+ *     5) 25 0,2 * * SAT,SUN (Vie 07:25 PM Lima -> night + night_mid_24 | Sáb 09:25 PM Lima -> night_mid_24)
  */
 
 const ALLOWED_REPO = 'jordantfarfan-cmd/grabador-radios-cloud';
@@ -101,27 +101,20 @@ async function dispatchWindow(pat, windowName) {
   console.log(`[OK] Ventana '${windowName}' lanzada puntualmente vía Cloudflare Cron.`);
 }
 
-function getWindowsForCron(cronExpr, scheduledTimeMs) {
+function getWindowsForSchedule(scheduledTimeMs) {
   const dt = new Date(scheduledTimeMs || Date.now());
-  const utcDay = dt.getUTCDay();   // 0=Dom..6=Sáb
+  const utcDay = dt.getUTCDay();   // JS getUTCDay(): 0=Dom, 1=Lun .. 5=Vie, 6=Sáb
   const utcHour = dt.getUTCHours();
 
-  switch (cronExpr) {
-    case '25 16 * * 1-5':
-      return ['daytime_12'];
-    case '25 19 * * 5':
-      return ['daytime_15'];
-    case '25 23 * * 5,6':
-      return utcDay === 6 ? ['viva_night', 'night_early_20'] : ['viva_night'];
-    case '20 22 * * 6,0':
-      return ['night'];
-    case '25 0,2 * * 6,0':
-      if (utcDay === 6 && utcHour === 0) return ['night', 'night_mid_24']; // Vie 7:25 PM Lima
-      if (utcDay === 0 && utcHour === 2) return ['night_mid_24'];          // Sáb 9:25 PM Lima
-      return [];
-    default:
-      return [];
+  if (utcHour === 16 && utcDay >= 1 && utcDay <= 5) return ['daytime_12'];
+  if (utcHour === 19 && utcDay === 5) return ['daytime_15'];
+  if (utcHour === 23 && (utcDay === 5 || utcDay === 6)) {
+    return utcDay === 6 ? ['viva_night', 'night_early_20'] : ['viva_night'];
   }
+  if (utcHour === 22 && (utcDay === 6 || utcDay === 0)) return ['night'];
+  if (utcHour === 0 && utcDay === 6) return ['night', 'night_mid_24']; // Vie 7:25 PM Lima
+  if (utcHour === 2 && utcDay === 0) return ['night_mid_24'];          // Sáb 9:25 PM Lima
+  return [];
 }
 
 export default {
@@ -182,7 +175,7 @@ export default {
       console.error('Falta el secreto GITHUB_PAT en el Worker de Cloudflare.');
       return;
     }
-    const windows = getWindowsForCron(event.cron, event.scheduledTime);
+    const windows = getWindowsForSchedule(event.scheduledTime);
     if (!windows.length) return;
 
     ctx.waitUntil(
