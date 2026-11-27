@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Consolidador de Audios y Generador de Previews Ligeros (Plan B)
-- Une parte 1 + parte 2 (.ts) de cada programa en un único audio.ts continuo.
-- Genera un MP3 ligero de los primeros 45 minutos (~21 MB) por programa para que el usuario
-  lo escuche rápido y elija el minuto exacto de inicio.
+- Une parte 1 + parte 2 (.ts) de cada programa en un único audio.ts continuo (sin recomprimir).
+- Genera un MP3 ligero de la primera hora (48 kbps mono, ~21 MB) por programa para que el usuario
+  lo escuche como guía en la web y elija el minuto exacto de inicio y el título.
 - Prepara las carpetas listas para subir como Artifacts de GitHub.
 """
 
@@ -13,7 +13,7 @@ import os
 import shutil
 import subprocess
 
-PREVIEW_SECONDS = 45 * 60  # Primeros 45 minutos (incluye los 10 min de colchón + 35 min del show)
+PREVIEW_SECONDS = 60 * 60  # Primera hora completa (10 min de colchón + 50 min del show)
 
 
 def safe_slug(name: str) -> str:
@@ -87,14 +87,16 @@ def main():
         size_mb = os.path.getsize(final_ts) / (1024 * 1024)
         print(f"✅ Audio consolidado: {key} ({size_mb:.1f} MB)")
 
-        # Generar Preview MP3 ligero (64 kbps, primeros 45 minutos)
-        preview_mp3 = os.path.join("previews", f"{slug}__{date_str}__PREVIEW.mp3")
+        # Generar Preview MP3 guía ligero (48 kbps mono, primera hora ~21 MB)
+        preview_dir = os.path.join("previews", key)
+        os.makedirs(preview_dir, exist_ok=True)
+        preview_mp3 = os.path.join(preview_dir, f"{slug}__{date_str}__PREVIEW.mp3")
         subprocess.run(
             [
                 "ffmpeg", "-y", "-loglevel", "warning",
                 "-i", final_ts,
                 "-t", str(PREVIEW_SECONDS),
-                "-c:a", "libmp3lame", "-b:a", "64k", "-ac", "2",
+                "-c:a", "libmp3lame", "-b:a", "48k", "-ac", "1",
                 preview_mp3,
             ],
             check=False,

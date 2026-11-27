@@ -291,15 +291,96 @@ jobs:
         with:
           name: tmp-night-part2-${{ github.run_id }}
           path: captured
-      - name: Consolidar audios y generar Previews MP3 (45 min)
+      - name: Consolidar audios y generar Previews MP3 (1 hora)
         run: python3 scripts/finalize_audio.py
 
-      - name: Subir Pack de Previews MP3 (Noche)
+      - name: Subir Preview MODA EL JUERGON DE MODA
         if: env.LOGICAL_DATE != ''
         uses: actions/upload-artifact@v4
         with:
-          name: Previews_Noche__${{ env.LOGICAL_DATE }}
-          path: previews/
+          name: Preview_MODA_EL_JUERGON_DE_MODA__${{ env.LOGICAL_DATE }}
+          path: previews/MODA_EL_JUERGON_DE_MODA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview PLANETA PLANETA WEEKEND
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_PLANETA_PLANETA_WEEKEND__${{ env.LOGICAL_DATE }}
+          path: previews/PLANETA_PLANETA_WEEKEND__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview ONDA CERO LA TOCADA
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_ONDA_CERO_LA_TOCADA__${{ env.LOGICAL_DATE }}
+          path: previews/ONDA_CERO_LA_TOCADA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview ONDA CERO LA HORA REMIX
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_ONDA_CERO_LA_HORA_REMIX__${{ env.LOGICAL_DATE }}
+          path: previews/ONDA_CERO_LA_HORA_REMIX__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview LA ZONA ZONA WEEKEND
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_LA_ZONA_ZONA_WEEKEND__${{ env.LOGICAL_DATE }}
+          path: previews/LA_ZONA_ZONA_WEEKEND__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}
+          path: previews/LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview STUDIO SESSIONS
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}
+          path: previews/STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview STUDIO MODO LATIN
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}
+          path: previews/STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview OXIGENO BAR OXIGENO
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}
+          path: previews/OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Subir Preview PANAMERICANA PANAMIX (Noche)
+        if: env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}
+          path: previews/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
 
