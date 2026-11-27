@@ -23,6 +23,7 @@ from media_utils import (
     download_cover,
     format_date_es,
     format_timestamp,
+    get_default_youtube_metadata,
     mux_mp4,
     parse_timestamp,
     probe_duration,
@@ -239,8 +240,9 @@ def main():
                 gf.write(f"MP4_ARTIFACT_NAME=MP4_{slug}__{real_date}\n")
         return
 
-    yt_title = args.title.strip() if args.title.strip() else f"{args.show} - {date_label}"
-    yt_desc = args.description.strip() if args.description.strip() else f"Grabación de {args.show} ({date_label})."
+    default_title, default_desc = get_default_youtube_metadata(args.show, date_label)
+    yt_title = args.title.strip() if args.title.strip() else default_title
+    yt_desc = args.description.strip() if args.description.strip() else default_desc
     print(f"--> Subiendo versión limpia a YouTube ({args.privacy}): {yt_title}")
     subprocess.run(
         [

@@ -19,7 +19,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from media_utils import download_cover, format_date_es, mux_mp4, probe_duration
+from media_utils import download_cover, format_date_es, get_default_youtube_metadata, mux_mp4, probe_duration
 
 
 def main():
@@ -80,11 +80,9 @@ def main():
             mp4_mb = os.path.getsize(mp4_path) / (1024 * 1024)
             print(f"✅ MP4 listo ({mp4_mb:.1f} MB). Subiendo a YouTube en Privado...")
 
-            yt_title = f"{show_name} - {date_label} [CRUDO]"
-            yt_desc = (
-                f"Grabación automática cruda de {show_name} ({date_label}). "
-                f"Subida en Privado para verificación previa de inicio y Content ID."
-            )
+            default_title, default_desc = get_default_youtube_metadata(show_name, date_label)
+            yt_title = f"[CRUDO] {default_title}"
+            yt_desc = default_desc
             res = subprocess.run(
                 [
                     sys.executable, upload_script,

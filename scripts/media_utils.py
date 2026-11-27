@@ -50,6 +50,61 @@ def format_date_es(date_str: str) -> str:
         return f"{now.day:02d} {months[now.month - 1]} {now.year}"
 
 
+SHOW_TEMPLATES = {
+    "PANAMERICANA PANAMIX": (
+        '"-" / [PANAMERICANA] 🎼 PANAMIX 🎼 {date}',
+        "👉 Sigue a DJ Bans: https://www.instagram.com/djbansdamemas/",
+    ),
+    "LA ZONA CLASICOS DEL REGGAETON": (
+        '"-" / [LA ZONA] 🔥 CLÁSICOS DEL REGGAETON 🔥 {date}',
+        "👉 Sigue a DJ Urbano: https://www.instagram.com/djurbano.peru/",
+    ),
+    "VIVA FM FIESTA PRIVADA": (
+        '"-" / [VIVA FM] 🎫 FIESTA PRIVADA 🎫 {date}',
+        "👉 Sigue a DJ Chris: https://www.instagram.com/djchrisperu/",
+    ),
+    "LA ZONA ZONA WEEKEND CLASICOS DEL REGGAETON": (
+        '"-" / [LA ZONA] 🏖️🔥 ZONA WEEKEND: CLÁSICOS DEL REGGAETON 🔥🏖️ {date}',
+        "👉 Sigue a DJ Urbano: https://www.instagram.com/djurbano.peru/",
+    ),
+    "STUDIO MODO LATIN": (
+        '"-" / [STUDIO 92] 🧃 MODO LATIN 🧃 {date}',
+        "👉 Sigue a DJ RED: https://www.instagram.com/djredperu/",
+    ),
+    "PLANETA PLANETA WEEKEND": (
+        '"-" / [PLANETA] 🪐 PLANETA WEEKEND 🪐 {date}',
+        "👉 Sigue a DJ GIAN: https://www.instagram.com/djgianperu/",
+    ),
+    "MODA EL JUERGON DE MODA": (
+        '"-" / [MODA] 💥 EL JUERGÓN DE MODA 💥 {date}',
+        "👉 Sigue a DJ GIAN: https://www.instagram.com/djgianperu/",
+    ),
+    "STUDIO SESSIONS": (
+        '"-" / [STUDIO 92] 🎧 SESSIONS 🎧 {date}',
+        "👉 Sigue a DJ RED: https://www.instagram.com/djredperu/",
+    ),
+    "OXIGENO BAR OXIGENO": (
+        '"-" / [OXÍGENO] 🍸 BAR OXÍGENO 🍸 {date}',
+        "👉 Sigue a DJ Fresh: https://www.facebook.com/Djfresheventos/",
+    ),
+    "LA ZONA ZONA WEEKEND": (
+        '"-" / [LA ZONA] 🏖️ ZONA WEEKEND 🏖️ {date}',
+        "👉 Sigue a DJ Urbano: https://www.instagram.com/djurbano.peru/",
+    ),
+    "ONDA CERO LA TOCADA": (
+        '"-" / [ONDA CERO] 🏓 LA TOCADA 🏓 {date}',
+        "👉 Sigue a DJ Mariane: https://www.instagram.com/djmarianeperu/\n👉 Sigue a DJ Bans: https://www.instagram.com/djbansdamemas/",
+    ),
+}
+
+
+def get_default_youtube_metadata(show_name: str, date_label: str) -> tuple[str, str]:
+    tpl = SHOW_TEMPLATES.get(show_name)
+    if tpl:
+        return tpl[0].format(date=date_label), tpl[1]
+    return f"{show_name} - {date_label}", f"Grabación de {show_name} ({date_label})."
+
+
 def probe_duration(file_path: str) -> float:
     probe = subprocess.run(
         [
