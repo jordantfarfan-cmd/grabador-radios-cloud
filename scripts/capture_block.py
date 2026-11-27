@@ -179,7 +179,11 @@ def record_single_show(show: dict, station: dict, start_min: int, end_min: int, 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--window", required=True, choices=["daytime_12", "daytime_15", "viva_night", "night_block_1", "night_block_2"])
+    parser.add_argument(
+        "--window",
+        required=True,
+        choices=["daytime_12", "daytime_15", "viva_night", "night_early_20", "night_mid_24", "night_block_1", "night_block_2"],
+    )
     parser.add_argument("--override-day", type=int, default=-1, help="Opcional: forzar día (0=Dom..6=Sáb)")
     parser.add_argument("--proxy", default=os.environ.get("STREAM_HTTP_PROXY", ""))
     args = parser.parse_args()
@@ -214,7 +218,7 @@ def main():
         s_min = parse_hhmm(show["start"]) - early_buf
         e_min = parse_hhmm(show["end"]) + end_buf
 
-        if args.window in ("daytime_12", "daytime_15", "viva_night"):
+        if args.window in ("daytime_12", "daytime_15", "viva_night", "night_early_20", "night_mid_24"):
             if show["window"] == args.window:
                 tasks.append((show, s_min, e_min, 1))
         elif args.window == "night_block_1":

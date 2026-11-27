@@ -13,6 +13,11 @@ on:
     - cron: '25 22 * * 6,0'
     # 5) Viernes Noche (desde 8:00 PM Lima) -> 00:25 UTC Sábado (arranca 7:25 PM Lima; L-J suspendido)
     - cron: '25 0 * * 6'
+    # 6) Sábado Noche Temprano (Modo Latin 7-8 PM Lima) -> 23:35 UTC Sábado (Cuenta VPN B, independiente)
+    - cron: '35 23 * * 6'
+    # 7) Cierre Medianoche (Vie 7:35 PM Lima -> 00:35 UTC Sáb, Sáb 9:35 PM Lima -> 02:35 UTC Dom; Cuenta VPN B)
+    - cron: '35 0 * * 6'
+    - cron: '35 2 * * 0'
 
   workflow_dispatch:
     inputs:
@@ -25,6 +30,8 @@ on:
           - daytime_12
           - daytime_15
           - viva_night
+          - night_early_20
+          - night_mid_24
       override_day:
         description: "Forzar día (0=Dom, 1=Lun, ..., 5=Vie, 6=Sáb, -1=Hoy automático Lima)"
         required: false
@@ -178,6 +185,140 @@ jobs:
         with:
           name: Audio_VIVA_FM_FIESTA_PRIVADA__${{ env.LOGICAL_DATE }}
           path: final_audios/VIVA_FM_FIESTA_PRIVADA__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Auto-Subir crudo en Privado a YouTube
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py
+
+  # =========================================================================
+  # SÁBADO TEMPRANO (Modo Latin 7-8 PM) - Cuenta VPN B independiente (sube ~8:05 PM)
+  # =========================================================================
+  night_early_20:
+    if: github.event.schedule == '35 23 * * 6' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_early_20')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Grabar Modo Latin con Cuenta VPN B y generar preview
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_B_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_B_WG_CONF_2 }}
+        run: |
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window night_early_20 --override-day "$OVERRIDE"
+          python3 scripts/finalize_audio.py
+      - name: Subir Preview STUDIO MODO LATIN
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}
+          path: previews/STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio STUDIO MODO LATIN (Respaldo 3 días)
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}
+          path: final_audios/STUDIO_MODO_LATIN__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Auto-Subir crudo en Privado a YouTube
+        if: env.LOGICAL_DATE != ''
+        env:
+          YT_TOKEN_1: ${{ secrets.YT_TOKEN_1 }}
+          YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
+          YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
+          YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+        run: python3 scripts/auto_upload.py
+
+  # =========================================================================
+  # NOCHE CIERRE MEDIANOCHE (Vie: Sessions+Oxígeno | Sáb: Panamix) - Cuenta VPN B
+  # =========================================================================
+  night_mid_24:
+    if: github.event.schedule == '35 0 * * 6' || github.event.schedule == '35 2 * * 0' || (github.event_name == 'workflow_dispatch' && github.event.inputs.window == 'night_mid_24')
+    runs-on: ubuntu-latest
+    timeout-minutes: 315
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar ffmpeg, wireproxy y librerías YouTube
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q google-auth google-auth-oauthlib google-api-python-client
+          curl -sSL -o wireproxy.tar.gz "https://github.com/windtf/wireproxy/releases/download/v1.1.3/wireproxy_linux_amd64.tar.gz"
+          tar -xzf wireproxy.tar.gz && chmod +x wireproxy && sudo mv wireproxy /usr/local/bin/wireproxy && rm -f wireproxy.tar.gz
+      - name: Grabar cierre Medianoche con Cuenta VPN B y generar preview
+        env:
+          PROTON_WG_CONF: ${{ secrets.PROTON_B_WG_CONF }}
+          PROTON_WG_CONF_2: ${{ secrets.PROTON_B_WG_CONF_2 }}
+        run: |
+          OVERRIDE="${{ github.event.inputs.override_day || '-1' }}"
+          python3 scripts/capture_block.py --window night_mid_24 --override-day "$OVERRIDE"
+          python3 scripts/finalize_audio.py
+      - name: Subir Preview STUDIO SESSIONS
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}
+          path: previews/STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio STUDIO SESSIONS
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}
+          path: final_audios/STUDIO_SESSIONS__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Preview OXIGENO BAR OXIGENO
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}
+          path: previews/OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio OXIGENO BAR OXIGENO
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}
+          path: final_audios/OXIGENO_BAR_OXIGENO__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Preview PANAMERICANA PANAMIX (Noche)
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Preview_PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}
+          path: previews/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir Audio PANAMERICANA PANAMIX (Noche)
+        if: always() && env.LOGICAL_DATE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audio_PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}
+          path: final_audios/PANAMERICANA_PANAMIX__${{ env.LOGICAL_DATE }}/
           retention-days: 3
           if-no-files-found: ignore
       - name: Auto-Subir crudo en Privado a YouTube

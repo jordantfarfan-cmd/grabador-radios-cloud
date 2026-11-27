@@ -97,7 +97,7 @@
       "days": [6],
       "start": "19:00",
       "end": "20:00",
-      "window": "night"
+      "window": "night_early_20"
     },
     {
       "slug": "PLANETA_WEEKEND",
@@ -140,11 +140,21 @@
       "window": "night"
     },
     {
-      "slug": "STUDIO_SESSIONS",
+      "slug": "STUDIO_SESSIONS_VIE",
       "name": "STUDIO SESSIONS",
       "station": "STUDIO_92",
       "cover": "STUDIO%20SESSIONS.png",
-      "days": [5, 6],
+      "days": [5],
+      "start": "20:00",
+      "end": "24:00",
+      "window": "night_mid_24"
+    },
+    {
+      "slug": "STUDIO_SESSIONS_SAB",
+      "name": "STUDIO SESSIONS",
+      "station": "STUDIO_92",
+      "cover": "STUDIO%20SESSIONS.png",
+      "days": [6],
       "start": "20:00",
       "end": "24:00",
       "window": "night"
@@ -157,7 +167,7 @@
       "days": [5],
       "start": "21:00",
       "end": "24:00",
-      "window": "night"
+      "window": "night_mid_24"
     },
     {
       "slug": "OXIGENO_BAR_SAB",
@@ -197,7 +207,7 @@
       "days": [6],
       "start": "22:00",
       "end": "24:00",
-      "window": "night"
+      "window": "night_mid_24"
     }
   ]
 }
