@@ -100,6 +100,14 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo Panamix
+        if: always() && env.RAW_ARTIFACT_PANAMERICANA_PANAMIX != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_PANAMERICANA_PANAMIX }}
+          path: ${{ env.RAW_PATH_PANAMERICANA_PANAMIX }}/
+          retention-days: 3
+          if-no-files-found: ignore
 
   # =========================================================================
   # VENTANA DÍA 3 PM (Viernes: La Zona Clásicos) - Con VPN Failover
@@ -160,6 +168,14 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo La Zona 3PM
+        if: always() && env.RAW_ARTIFACT_LA_ZONA_CLASICOS_DEL_REGGAETON != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_LA_ZONA_CLASICOS_DEL_REGGAETON }}
+          path: ${{ env.RAW_PATH_LA_ZONA_CLASICOS_DEL_REGGAETON }}/
+          retention-days: 3
+          if-no-files-found: ignore
 
   # =========================================================================
   # VENTANA VIVA FM NOCHE (Vie-Sáb 7 PM - 12 AM) - Directo sin VPN
@@ -212,6 +228,14 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo Viva FM
+        if: always() && env.RAW_ARTIFACT_VIVA_FM_FIESTA_PRIVADA != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_VIVA_FM_FIESTA_PRIVADA }}
+          path: ${{ env.RAW_PATH_VIVA_FM_FIESTA_PRIVADA }}/
+          retention-days: 3
+          if-no-files-found: ignore
 
   # =========================================================================
   # SÁBADO TEMPRANO (Modo Latin 7-8 PM) - Cuenta VPN B independiente (sube ~8:05 PM)
@@ -269,6 +293,14 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo Modo Latin
+        if: always() && env.RAW_ARTIFACT_STUDIO_MODO_LATIN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_STUDIO_MODO_LATIN }}
+          path: ${{ env.RAW_PATH_STUDIO_MODO_LATIN }}/
+          retention-days: 3
+          if-no-files-found: ignore
 
   # =========================================================================
   # NOCHE CIERRE MEDIANOCHE (Vie: Sessions+Oxígeno | Sáb: Panamix) - Cuenta VPN B
@@ -358,6 +390,30 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo STUDIO SESSIONS
+        if: always() && env.RAW_ARTIFACT_STUDIO_SESSIONS != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_STUDIO_SESSIONS }}
+          path: ${{ env.RAW_PATH_STUDIO_SESSIONS }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo OXIGENO BAR OXIGENO
+        if: always() && env.RAW_ARTIFACT_OXIGENO_BAR_OXIGENO != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_OXIGENO_BAR_OXIGENO }}
+          path: ${{ env.RAW_PATH_OXIGENO_BAR_OXIGENO }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo PANAMIX Noche
+        if: always() && env.RAW_ARTIFACT_PANAMERICANA_PANAMIX != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_PANAMERICANA_PANAMIX }}
+          path: ${{ env.RAW_PATH_PANAMERICANA_PANAMIX }}/
+          retention-days: 3
+          if-no-files-found: ignore
 
   # =========================================================================
   # NOCHE BLOQUE 1 (Hasta 10:50 PM Lima) - Con VPN Failover Activo
@@ -661,3 +717,83 @@ jobs:
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
         run: python3 scripts/auto_upload.py
+      - name: Subir marcador RawVideo MODA
+        if: always() && env.RAW_ARTIFACT_MODA_EL_JUERGON_DE_MODA != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_MODA_EL_JUERGON_DE_MODA }}
+          path: ${{ env.RAW_PATH_MODA_EL_JUERGON_DE_MODA }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo PLANETA
+        if: always() && env.RAW_ARTIFACT_PLANETA_PLANETA_WEEKEND != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_PLANETA_PLANETA_WEEKEND }}
+          path: ${{ env.RAW_PATH_PLANETA_PLANETA_WEEKEND }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo LA TOCADA
+        if: always() && env.RAW_ARTIFACT_ONDA_CERO_LA_TOCADA != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_ONDA_CERO_LA_TOCADA }}
+          path: ${{ env.RAW_PATH_ONDA_CERO_LA_TOCADA }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo HORA REMIX
+        if: always() && env.RAW_ARTIFACT_ONDA_CERO_LA_HORA_REMIX != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_ONDA_CERO_LA_HORA_REMIX }}
+          path: ${{ env.RAW_PATH_ONDA_CERO_LA_HORA_REMIX }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo ZONA WEEKEND
+        if: always() && env.RAW_ARTIFACT_LA_ZONA_ZONA_WEEKEND != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_LA_ZONA_ZONA_WEEKEND }}
+          path: ${{ env.RAW_PATH_LA_ZONA_ZONA_WEEKEND }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo ZONA WEEKEND CLASICOS
+        if: always() && env.RAW_ARTIFACT_LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON }}
+          path: ${{ env.RAW_PATH_LA_ZONA_ZONA_WEEKEND_CLASICOS_DEL_REGGAETON }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo STUDIO SESSIONS (Noche)
+        if: always() && env.RAW_ARTIFACT_STUDIO_SESSIONS != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_STUDIO_SESSIONS }}
+          path: ${{ env.RAW_PATH_STUDIO_SESSIONS }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo MODO LATIN (Noche)
+        if: always() && env.RAW_ARTIFACT_STUDIO_MODO_LATIN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_STUDIO_MODO_LATIN }}
+          path: ${{ env.RAW_PATH_STUDIO_MODO_LATIN }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo OXIGENO (Noche)
+        if: always() && env.RAW_ARTIFACT_OXIGENO_BAR_OXIGENO != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_OXIGENO_BAR_OXIGENO }}
+          path: ${{ env.RAW_PATH_OXIGENO_BAR_OXIGENO }}/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Subir marcador RawVideo PANAMIX (Noche Finalize)
+        if: always() && env.RAW_ARTIFACT_PANAMERICANA_PANAMIX != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RAW_ARTIFACT_PANAMERICANA_PANAMIX }}
+          path: ${{ env.RAW_PATH_PANAMERICANA_PANAMIX }}/
+          retention-days: 3
+          if-no-files-found: ignore

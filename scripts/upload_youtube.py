@@ -154,6 +154,7 @@ def main():
     parser.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"], help="Estado inicial")
     parser.add_argument("--playlist", default="", help="Nombre exacto de la playlist de YouTube (opcional)")
     parser.add_argument("--slot-index", type=int, default=1, help="Índice del video en el día (1..N)")
+    parser.add_argument("--out-video-id", default="", help="Ruta opcional para guardar el Video ID subido")
     args = parser.parse_args()
 
     if not os.path.isfile(args.file):
@@ -179,6 +180,11 @@ def main():
         try:
             print(f"--> Usando credenciales de: {proj_name} (slot #{args.slot_index})")
             video_id = upload_with_credentials(token_str, args.file, args.title, args.description, args.privacy)
+            if video_id and args.out_video_id.strip():
+                out_path = os.path.abspath(args.out_video_id.strip())
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+                with open(out_path, "w", encoding="utf-8") as vf:
+                    vf.write(f"{video_id}\n")
             if video_id and args.playlist.strip():
                 add_video_to_playlist(video_id, args.playlist, tokens)
             return

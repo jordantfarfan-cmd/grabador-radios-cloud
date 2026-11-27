@@ -19,7 +19,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from media_utils import download_cover, format_date_es, get_default_youtube_metadata, mux_mp4, probe_duration
+from media_utils import download_cover, format_date_es, get_default_youtube_metadata, mux_mp4, probe_duration, safe_slug
 
 
 def main():
@@ -55,6 +55,7 @@ def main():
                 meta = json.load(f)
 
         show_name = meta.get("name", os.path.basename(d))
+        slug = meta.get("slug") or safe_slug(show_name)
         date_str = meta.get("date", "")
         date_label = format_date_es(date_str)
         cover_file = meta.get("cover", f"{show_name.replace(' ', '%20')}.png")
@@ -74,6 +75,8 @@ def main():
             dur_sec = None
 
         mp4_path = os.path.join(work_dir, "raw_upload.mp4")
+        raw_id_dir = os.path.join("raw_videos", slug)
+        raw_id_file = os.path.join(raw_id_dir, "video_id.txt")
         try:
             print("--> Empaquetando MP4 1080x1080 (1 FPS, BT.709, Opus 320 kbps)...")
             mux_mp4(cover_path, audio_ts, mp4_path, dur_sec)
@@ -91,6 +94,7 @@ def main():
                     "--description", yt_desc,
                     "--privacy", "private",
                     "--slot-index", str(slot_idx),
+                    "--out-video-id", raw_id_file,
                 ],
                 check=False,
             )
@@ -99,6 +103,15 @@ def main():
                     f"::warning::No se pudo auto-subir '{yt_title}' (posible cuota YouTube agotada). "
                     f"El audio completo sigue guardado 3 días en GitHub Artifacts."
                 )
+            elif os.path.isfile(raw_id_file):
+                with open(raw_id_file, "r", encoding="utf-8") as rf:
+                    raw_vid = rf.read().strip()
+                if raw_vid and date_str and os.environ.get("GITHUB_ENV"):
+                    artifact_name = f"RawVideo_{slug}__{date_str}__{raw_vid}"
+                    with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as gf:
+                        gf.write(f"RAW_ARTIFACT_{slug}={artifact_name}\n")
+                        gf.write(f"RAW_PATH_{slug}={raw_id_dir}\n")
+                    print(f"--> 🏷️ Marcador Artifact preparado: {artifact_name}")
         finally:
             if os.path.isfile(mp4_path):
                 os.remove(mp4_path)
