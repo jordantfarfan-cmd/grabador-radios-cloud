@@ -147,6 +147,7 @@ def main():
     parser.add_argument("--exclude", default="", help="Tramos a quitar por copyright separados por coma (ej. 45:12-48:30, 01:52:10-01:55:40)")
     parser.add_argument("--date", default="", help="Fecha opcional YYYY-MM-DD (por defecto la más reciente)")
     parser.add_argument("--title", default="", help="Título personalizado opcional para YouTube")
+    parser.add_argument("--description", default="", help="Descripción personalizada opcional para YouTube")
     parser.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     parser.add_argument("--download-only", action="store_true", help="Solo generar MP4 descargable (sin subir a YouTube)")
     args = parser.parse_args()
@@ -239,13 +240,14 @@ def main():
         return
 
     yt_title = args.title.strip() if args.title.strip() else f"{args.show} - {date_label}"
+    yt_desc = args.description.strip() if args.description.strip() else f"Grabación de {args.show} ({date_label})."
     print(f"--> Subiendo versión limpia a YouTube ({args.privacy}): {yt_title}")
     subprocess.run(
         [
             sys.executable, os.path.join(SCRIPT_DIR, "upload_youtube.py"),
             "--file", final_mp4,
             "--title", yt_title,
-            "--description", f"Grabación de {args.show} ({date_label}).",
+            "--description", yt_desc,
             "--privacy", args.privacy,
             "--slot-index", "1",
         ],

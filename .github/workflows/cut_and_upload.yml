@@ -45,8 +45,13 @@ on:
         required: false
         default: ""
         type: string
+      description:
+        description: "7. (Opcional) Descripción personalizada para YouTube"
+        required: false
+        default: ""
+        type: string
       privacy:
-        description: "7. Visibilidad en YouTube"
+        description: "8. Visibilidad en YouTube"
         required: true
         type: choice
         default: private
@@ -55,7 +60,7 @@ on:
           - unlisted
           - public
       download_only:
-        description: "8. Solo generar MP4 descargable (no subir a YouTube)"
+        description: "9. Solo generar MP4 descargable (no subir a YouTube)"
         required: false
         default: false
         type: boolean
@@ -84,6 +89,8 @@ jobs:
           YT_TOKEN_2: ${{ secrets.YT_TOKEN_2 }}
           YT_TOKEN_3: ${{ secrets.YT_TOKEN_3 }}
           YT_TOKEN_4: ${{ secrets.YT_TOKEN_4 }}
+          INPUT_TITLE: ${{ github.event.inputs.title }}
+          INPUT_DESCRIPTION: ${{ github.event.inputs.description }}
         run: |
           ARGS=(
             --show "${{ github.event.inputs.show }}"
@@ -99,8 +106,11 @@ jobs:
           if [ -n "${{ github.event.inputs.date }}" ]; then
             ARGS+=(--date "${{ github.event.inputs.date }}")
           fi
-          if [ -n "${{ github.event.inputs.title }}" ]; then
-            ARGS+=(--title "${{ github.event.inputs.title }}")
+          if [ -n "$INPUT_TITLE" ]; then
+            ARGS+=(--title "$INPUT_TITLE")
+          fi
+          if [ -n "$INPUT_DESCRIPTION" ]; then
+            ARGS+=(--description "$INPUT_DESCRIPTION")
           fi
           if [ "${{ github.event.inputs.download_only }}" = "true" ]; then
             ARGS+=(--download-only)
