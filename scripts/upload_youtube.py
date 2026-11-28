@@ -39,13 +39,25 @@ def build_youtube_service(token_json_str: str):
     return build("youtube", "v3", credentials=creds)
 
 
+def sanitize_youtube_description(description: str) -> str:
+    """Normaliza caracteres inválidos y recorta por línea si excede el límite estricto de 5,000 chars de YouTube."""
+    safe_desc = (description or "").replace("<", "(").replace(">", ")").strip()
+    if len(safe_desc) <= 5000:
+        return safe_desc
+    print(f"::warning::La descripción excede el límite de 5,000 caracteres de YouTube ({len(safe_desc)}). Recortando líneas finales para evitar error 400.")
+    cut = safe_desc[:4990]
+    last_nl = cut.rfind("\n")
+    return cut[:last_nl].rstrip() if last_nl > 0 else cut.rstrip()
+
+
 def upload_with_credentials(token_json_str: str, file_path: str, title: str, description: str, privacy: str):
     youtube = build_youtube_service(token_json_str)
+    safe_desc = sanitize_youtube_description(description)
 
     body = {
         "snippet": {
             "title": title[:100],  # Límite estricto de YouTube: 100 caracteres
-            "description": description,
+            "description": safe_desc,
             "categoryId": "10",  # 10 = Música
         },
         "status": {
