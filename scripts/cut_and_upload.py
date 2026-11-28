@@ -32,18 +32,10 @@ from media_utils import (
 )
 
 
-def find_latest_artifact(repo: str, slug: str, target_date: str = ""):
+def select_best_audio_artifact(artifacts: list[dict], slug: str, target_date: str = ""):
     prefix = f"Audio_{slug}__"
     if target_date:
         prefix = f"Audio_{slug}__{target_date}"
-
-    cmd = [
-        "gh", "api",
-        f"repos/{repo}/actions/artifacts?per_page=100",
-        "--jq", ".artifacts",
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    artifacts = json.loads(res.stdout)
 
     matches = [
         a for a in artifacts
@@ -51,8 +43,26 @@ def find_latest_artifact(repo: str, slug: str, target_date: str = ""):
     ]
     if not matches:
         return None
-    matches.sort(key=lambda x: x["created_at"], reverse=True)
+
+    # Priorizar fecha más reciente y, ante duplicados del mismo día, el Artifact más pesado (grabación completa).
+    def sort_key(art: dict):
+        name = art.get("name", "")
+        art_date = name.rsplit("__", 1)[-1] if "__" in name else ""
+        return (art_date, int(art.get("size_in_bytes") or 0), art.get("created_at") or "")
+
+    matches.sort(key=sort_key, reverse=True)
     return matches[0]
+
+
+def find_latest_artifact(repo: str, slug: str, target_date: str = ""):
+    cmd = [
+        "gh", "api",
+        f"repos/{repo}/actions/artifacts?per_page=100",
+        "--jq", ".artifacts",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    artifacts = json.loads(res.stdout)
+    return select_best_audio_artifact(artifacts, slug, target_date)
 
 
 def compute_keep_segments(win_start: float, win_end: float, exclude_raw: str) -> list[tuple[float, float]]:
